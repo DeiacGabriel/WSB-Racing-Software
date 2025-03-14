@@ -1,0 +1,50 @@
+﻿@model WSB_Racing.Models.LoginModel
+@{
+    ViewData["Title"] = "Login";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSB-Sport Login</title>
+    <link rel="stylesheet" href="~/css/login.css">
+    <script>
+        function togglePassword() {
+            var passwordField = document.getElementById("password");
+            var toggleIcon = document.getElementById("togglePasswordIcon");
+            if (passwordField.type === "password") {
+                passwordField.type = "text";
+                toggleIcon.textContent = "🙈";
+            } else {
+                passwordField.type = "password";
+                toggleIcon.textContent = "👁️";
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="login-container">
+        <h1>WSB-Sport</h1>
+        <p class="website"><a href="https://www.wsb-sport.com" style="text-decoration:none; color:black;">www.wsb-sport.com</a></p>
+        <form method="post" asp-action="Login">
+            <div class="form-email">
+                <label for="email">Email</label>
+                <input type="email" id="email" asp-for="Email" placeholder="max.mustermann@wsb-sport.at" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div>
+                    <input type="password" id="password" asp-for="Password" placeholder="Password" required>
+                    <span id="togglePasswordIcon" onclick="togglePassword()">👁️</span>
+                    <p><a class ="links">Passwort vergessen?</a></p>
+                </div>
+            </div>
+            <button type="submit">LOG IN</button>
+        </form>
+        <p><a class="links">Kein Konto?</a></p>
+    </div>
+</body>
+</html>
