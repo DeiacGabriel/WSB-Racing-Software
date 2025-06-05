@@ -1,0 +1,37 @@
+﻿@page "/"
+@rendermode InteractiveServer
+
+<h1>WSB-Sport</h1>
+<p class="website">
+    <a href="https://www.wsb-sport.com" style="text-decoration:none; color:black;">www.wsb-sport.com</a>
+</p>
+
+<EditForm method="post" Model="this" OnValidSubmit="LoginUser">
+    <AntiforgeryToken />  
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-email">
+        <label for="email">Username</label>
+        <InputText id="email" @bind-Value="Username" class="form-control" />
+        <ValidationMessage For="@(() => Username)" />
+    </div>
+
+    <div class="form-group">
+        <label for="password">Password</label>
+        <div>
+            <InputText id="password" @bind-Value="Password" type="@passwordInputType" class="form-control" />
+            <ValidationMessage For="@(() => Password)" />
+            <p><a class="links">Passwort vergessen?</a></p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <p style="color:red">@ErrorMessage</p>
+    }
+
+    <button type="submit">LOG IN</button>
+</EditForm>
+
+<p><a class="links">Kein Konto?</a></p>
