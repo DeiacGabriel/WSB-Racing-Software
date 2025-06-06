@@ -1,30 +1,59 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">WSB_Management</a>
-    </div>
+﻿@inject NavigationManager navigationManager
+<HeadContent>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        .navbar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 32px;
+            padding: 12px 30px;
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            z-index: 1000;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            border-radius: 8px;
+            color: #333;
+            cursor: pointer;
+            font-size: 14px;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+            .nav-item:hover {
+                background-color: #f0f0f0;
+            }
+
+            .nav-item.active {
+                background-color: #fceeee;
+                color: #c62828;
+                font-weight: bold;
+            }
+
+            .nav-item .material-icons {
+                font-size: 18px;
+            }
+    </style>
+</HeadContent>
+
+<div class="navbar">
+    <a class="nav-item active" href="#"><span class="material-icons">groups</span> Kunden</a>
+    <a class="nav-item" href="#"><span class="material-icons">grid_view</span> Bikes</a>
+    <a class="nav-item" href="#"><span class="material-icons">assignment</span> Rennen</a>
+    <a class="nav-item" href="#"><span class="material-icons">calendar_today</span> Kalender</a>
+    <a class="nav-item" href="#"><span class="material-icons">tv</span> Events</a>
+    <a class="nav-item" href="#"><span class="material-icons">hourglass_empty</span> Rankings</a>
+    <a class="nav-item" href="#"><span class="material-icons">bar_chart</span> Statistiken</a>
+    <a class="nav-item" href="#"><span class="material-icons">apartment</span> Management</a>
+    <a class="nav-item" href="#"><span class="material-icons">person</span> Einstellungen</a>
 </div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-    </nav>
-</div>
-

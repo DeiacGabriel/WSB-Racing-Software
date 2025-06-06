@@ -17,32 +17,28 @@ namespace WSB_Management
             builder.Services.AddDbContext<WSBRacingDbContext>(options =>
                 options.UseMySQL(connectionString ?? throw new InvalidOperationException("MySQLConnection not configured.")));
 
-            // Razor Components and interactivity
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
-
-            // Authentication and Authorization
+            /*
             builder.Services.AddAuthentication(options =>
             {
-                options.DefaultScheme = "CustomAuth";
-                options.DefaultChallengeScheme = "CustomAuth";
-                options.DefaultAuthenticateScheme = "CustomAuth";
+                options.DefaultScheme = "Cookies";
+                options.DefaultChallengeScheme = "Cookies";
             })
-            .AddCustomAuth();
-
-            builder.Services.AddAuthorization();
-            builder.Services.AddCascadingAuthenticationState();
-            builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
-            builder.Services.AddScoped<CustomAuthStateProvider>();
-            builder.Services.AddScoped<ProtectedSessionStorage>();
-
-
-            builder.Services.AddAntiforgery(options =>
+            .AddCookie("Cookies", options =>
             {
-                options.HeaderName = "X-CSRF-TOKEN";
+                options.Cookie.Name = "WSB_Management.Auth";
+                options.ExpireTimeSpan = TimeSpan.FromDays(1);
+                options.SlidingExpiration = true;
             });
 
-            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddScoped<ProtectedLocalStorage>();
+            builder.Services.AddScoped<LoggedInUserService>();
+            builder.Services.AddScoped<WebsiteAuthenticator>();
+            builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
+                sp.GetRequiredService<WebsiteAuthenticator>());
+            */
+            builder.Services.AddAntiforgery();
 
             var app = builder.Build();
 
@@ -62,9 +58,10 @@ namespace WSB_Management
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
+            /*
             app.UseAuthentication();
             app.UseAuthorization();
-
+            */
             app.UseAntiforgery();
 
             app.MapRazorComponents<App>()
