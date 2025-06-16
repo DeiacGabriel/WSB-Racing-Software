@@ -1,0 +1,139 @@
+﻿@page "/customer"
+@rendermode InteractiveServer
+
+<HeadContent>
+    <link href="@Assets["customer.css"]" rel="stylesheet" />
+</HeadContent>
+
+<PageTitle>Kunden</PageTitle>
+
+<div class="kunden-search-section">
+    <div class="search-fields">
+        <input placeholder="Nachname" />
+        <input placeholder="Vorname" />
+        <input placeholder="Straße" />
+        <input placeholder="Ort" />
+        <input type="date" placeholder="Geburtsdatum" />
+        <button class="search-btn">Kunden finden</button>
+        <button class="clear-btn">Clear</button>
+    </div>
+    <div class="search-result-header">
+        <span>Liste aller Kunden</span>
+        <button class="excel-export">Export to Excel</button>
+    </div>
+    <div class="kunden-list">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nachname</th>
+                    <th>Vorname</th>
+                    <th>Straße</th>
+                    <th>Ort</th>
+                    <th>Geburtsdatum</th>
+                    <th>...</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Deiac</td>
+                    <td>Gabriel</td>
+                    <td>1. Straße</td>
+                    <td>Kematen</td>
+                    <td>15.03.2007</td>
+                    <td>
+                        <button class="edit-btn">Edit</button>
+                        <button class="delete-btn">Delete</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="pagination">
+            <span class="page-link">Previous</span>
+            <span class="page-number selected">1</span>
+            <span class="page-number">2</span>
+            <span class="page-number">3</span>
+            <span class="page-number">...</span>
+            <span class="page-number">31</span>
+            <span class="page-link">Next</span>
+            <span class="total-count">Total: 713</span>
+        </div>
+    </div>
+    <div class="action-buttons">
+        <button class="add-btn">+ Kunde hinzufügen</button>
+        <button class="register-btn">+ Kunde anmelden</button>
+    </div>
+</div>
+
+<div class="kunden-detail-section">
+    <div class="detail-column">
+        <label>Name</label>
+        <input value="Deiac Gabriel" />
+        <label>Adresse</label>
+        <input value="1. Straße 33, 3331 Kematen/Ybbs" />
+        <label>Land</label>
+        <input value="AT" />
+        <label>Geb</label>
+        <input value="15.03.2007" />
+        <label>Kontakt</label>
+        <input value="gabrieldeiac33@gmail.com" />
+        <input value="0677 62519203" />
+        <label>NOTFALL</label>
+        <input value="dieter@wsb-sport.com" />
+        <input value="0650 12345603" />
+        <label>UID</label>
+        <input />
+        <label>Sponsor</label>
+        <input value="wsb-sport" />
+    </div>
+
+    <div class="detail-column">
+        <label>Bike</label>
+        <input value="Honda" />
+        <label>Typ</label>
+        <input value="Youngtimer" />
+        <label>Klasse</label>
+        <input value="600" />
+        <label>Baujahr</label>
+        <input value="1993" />
+        <label>Start #</label>
+        <input value="32" />
+        <label>Tran</label>
+        <input value="0" />
+        <label>SBS</label>
+        <input />
+        <label>Speeddays</label>
+        <input />
+    </div>
+
+    <div class="detail-column">
+        <label>Tick</label>
+        <input value="Teamchef" />
+        <label>END Cup</label>
+        <input value="Teamchef" />
+        <label>Gruppe</label>
+        <input />
+        <label>Jahreswertungen</label>
+        <div class="jahreswertung-list">
+            <label><input type="checkbox" checked /> WSB-Cup</label>
+            <label><input type="checkbox" checked /> SUZUKI-Challenge</label>
+            <label><input type="checkbox" /> LADIES-Cup</label>
+            <label><input type="checkbox" /> BMW BOXER-Cup</label>
+            <label><input type="checkbox" /> STOCK1000-Cup</label>
+            <label><input type="checkbox" /> DUCATI-Challenge</label>
+            <label><input type="checkbox" /> BMW-S1000-Cup</label>
+            <label><input type="checkbox" checked /> YOUNGTIMER-Cup</label>
+        </div>
+        <label>Lizenz</label>
+        <input />
+        <label>Jahreskarte</label>
+        <input />
+        <label>Laptime Referenz</label>
+        <input value="2:29.000" />
+    </div>
+</div>
+
+<div class="footer-buttons">
+    <button class="save-btn">Speichern</button>
+    <button class="mail-btn">Mail senden</button>
+    <button class="mass-mail-btn">Kundenmails</button>
+</div>

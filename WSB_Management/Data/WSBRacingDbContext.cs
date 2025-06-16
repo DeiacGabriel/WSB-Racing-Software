@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using WSB_Management.Models;
 
 namespace WSB_Management.Data;
 
-public class WSBRacingDbContext : DbContext
+public class WSBRacingDbContext :IdentityDbContext<Personal, IdentityRole<int>, int>
 {
     public WSBRacingDbContext(DbContextOptions<WSBRacingDbContext> options)
         : base(options)

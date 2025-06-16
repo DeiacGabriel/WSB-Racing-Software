@@ -1,46 +1,61 @@
-﻿@page "/Login"
-@using Microsoft.AspNetCore.Components.Authorization
+﻿@using WSB_Management.Components.Layout
+@using System.ComponentModel.DataAnnotations
+
+@page "/login"
 @rendermode InteractiveServer
+@layout MinimalLayout
 
 <PageTitle>WSB-Sport - Login</PageTitle>
-<h1>Login</h1>
-<!--
-<div class="login-container">
-    <div class="login-header">
+<HeadContent>
+    <link rel="stylesheet" href="@Assets["login.css"]" />
+</HeadContent>
+
+<div class="page-container">
+    <div class="page-header">
         <h1>WSB-Sport</h1>
-        <p class="website">
-            <a href="https://www.wsb-sport.com" target="_blank" class="website-link">www.wsb-sport.com</a>
+        <p class="brand-subtitle">
+            <a href="https://www.wsb-sport.com" target="_blank">www.wsb-sport.com</a>
         </p>
     </div>
 
-    <div class="login-card">
-        <EditForm Model="this" OnValidSubmit="HandleLogin">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+    <div class="login-full">
+        <div class="login-content">
+            <EditForm Model="@this" OnValidSubmit="HandleLogin">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
 
-            <div class="form-group">
-                <label for="username">Username</label>
-                <InputText id="username" @bind-Value="Username" class="form-control" />
-                <ValidationMessage For="@(() => Username)" />
-            </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <div class="input-wrapper">
+                        <InputText @bind-Value="Username" class="input" placeholder="max.mustermann@wsb-sport.at" />
+                        @if (Username.Contains("@wsb-sport.at"))
+                        {
+                            <span class="icon-valid">✔</span>
+                        }
+                    </div>
+                    <ValidationMessage For="@(() => Username)" />
+                </div>
 
-            <div class="form-group">
-                <label for="password">Password</label>
-                <InputText id="password" @bind-Value="Password" type="password" class="form-control" />
-                <ValidationMessage For="@(() => Password)" />
-            </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <InputText @bind-Value="Password" class="form-control input" type="password" />
+                    <ValidationMessage For="@(() => Password)" />
+                    <div class="forgot-password">
+                        <a href="#">Passwort vergessen?</a>
+                    </div>
+                </div>
 
-            @if (!string.IsNullOrEmpty(ErrorMessage))
-            {
-                <div class="alert alert-danger">@ErrorMessage</div>
-            }
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-danger">@ErrorMessage</div>
+                }
 
-            <button type="submit" class="btn btn-primary">Login</button>
-        </EditForm>
+                <button type="submit" class="btn login-button">LOG IN</button>
 
-        <div class="register-link">
-            <p>Kein Konto? <a href="/register" class="link">Jetzt registrieren</a></p>
+                <div class="register-link text-center">
+                    <a href="/register">Noch kein Konto?</a>
+                </div>
+            </EditForm>
         </div>
     </div>
 </div>
--->
