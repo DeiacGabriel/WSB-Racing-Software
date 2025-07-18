@@ -15,6 +15,16 @@ public class Customer
     public string Surname { get; set; } = null!;
 
     public DateTime Birthdate { get; set; }
+    public int Age
+    {
+        get
+        {
+            var today = DateTime.Today;
+            var age = today.Year - Birthdate.Year;
+            if (Birthdate > today.AddYears(-age)) age--;
+            return age;
+        }
+    }
 
     public string? Sex { get; set; }
 

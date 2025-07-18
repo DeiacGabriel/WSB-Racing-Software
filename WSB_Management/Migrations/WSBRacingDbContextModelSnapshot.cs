@@ -514,7 +514,7 @@ namespace WSB_Management.Migrations
 
                     b.HasKey("PositionId");
 
-                    b.ToTable("Positions");
+                    b.ToTable("Positions", (string)null);
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Transponder", b =>

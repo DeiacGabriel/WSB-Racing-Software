@@ -1,188 +1,381 @@
-﻿body {
-    font-family: 'Segoe UI', sans-serif;
-    background-color: #f5f5f5;
-    margin: 0;
-    padding: 0;
-    padding-top: 4.5rem; /* Platz für obere Leiste wie Navbar */
-    overflow-x: hidden;
-}
-
-.page,
-.kunden-search-section,
-.kunden-detail-section,
-.footer-buttons {
-    background-color: #fff;
-    margin: 1rem auto;
-    padding: 1.5rem;
+﻿/* Global Styles */
+body {
+    background-color: #f1f1f1;
     border-radius: 12px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-    max-width: 1400px;
+    margin: 1rem auto;
+    font-family: 'Roboto', sans-serif;
+    display: block;
+    flex-direction: row;
+    align-items: center;
 }
-
-.kunden-search-section {
+input[type="checkbox"] {
+  margin-right: 5rem;
+  transform: scale(1.25);
+}
+button{
+    height: 35px;
+    color: white;
+    background-color: #C72E29;
+    cursor: pointer;
+    border: black 2px solid;
+    border-radius: 20px;
+}
+button:hover{
+    color: #C72E29;
+    background-color: white;
+}
+img{
+    width: 12px;
+}
+div {
+    margin: 0.25rem 0;
+}
+p {
+    margin: 0;
+}
+.group-div {
+    background-color: white;
+    border-radius: 12px;
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    margin: 0;
 }
 
-.search-fields {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
+/* Kunden Filter */
+.kunden-filter label{
+    width: 13.25rem;
+    margin: 0.25rem 0.25rem;
+    display: inline-block;
+    font-weight: bold;
+    font-size: medium;
 }
-
-    .search-fields input,
-    .search-fields button {
-        padding: 0.6rem;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        font-size: 0.95rem;
-    }
-
-.search-btn {
-    background-color: #c1121f;
+.kunden-filter input{
+    height: 25px;
+    width: 10%;
+    border: white 2px solid;
+    border-radius: 20px;
+    margin: 0rem 0.25rem;
+    text-indent: 0.5rem;
+}
+.btn:hover{
+    background-color: #A12A26;
+}
+.clear-btn{
+    background-color: transparent;
+    color: gray;
+    width: 13rem;
+}
+.filter-btn{
+    width: 13rem;
+}
+.clear-btn:hover{
+    background-color: #C72E29;
     color: white;
-    border: none;
+}
+.kunden-titel{
+    font-size: 1.5rem;
+    font-weight: bold;
+    height: 25px;
+    text-align: center;
 }
 
-.clear-btn {
-    background-color: #e0e0e0;
-    color: #333;
-    border: none;
-}
-
-.search-result-header {
+/* Kunden Liste Header */
+.kunden-liste-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-.excel-export {
-    color: red;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    border: none;
-}
-
-.kunden-list table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.95rem;
-}
-
-.kunden-list th,
-.kunden-list td {
-    padding: 0.75rem;
-    border-bottom: 1px solid #ddd;
-    text-align: left;
-}
-
-.edit-btn {
-    background-color: #3498db;
-    color: white;
-    padding: 0.4rem 0.8rem;
-    border: none;
-    border-radius: 6px;
-}
-
-.delete-btn {
-    background-color: #e74c3c;
-    color: white;
-    padding: 0.4rem 0.8rem;
-    border: none;
-    border-radius: 6px;
-}
-
-.pagination {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    margin-top: 1rem;
     flex-wrap: wrap;
+    margin: 0 1rem;
+}
+.header-btn {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0 0 0;  
+}
+.excel-btn {
+    border: gray 2px solid;
+    background-color: transparent;
+    color: #C72E29;
+}
+.excel-btn:hover {
+    background-color: #C72E29;
+    color: white;
+}
+.regis-kunde-btn {
+    background-color: #008000;
+}
+.regis-kunde-btn:hover {
+    background-color: white;
+    color: #008000;
 }
 
-.page-number.selected {
-    background-color: #d62828;
-    color: white;
-    padding: 0.3rem 0.7rem;
-    border-radius: 6px;
+/* Tabelle */
+.kunden-tabelle {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  background-color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 0rem 1rem;
+  max-height:27rem;
 }
 
-.add-btn {
-    background-color: #c1121f;
-    color: white;
-    padding: 0.5rem 1rem;
+.kunden-tabelle thead {
+  background-color: #d6d6dc;
+  color: black;
+}
+
+.kunden-tabelle thead th {
+  padding: 12px;
+  text-align: left;
+  font-weight: bold;
+}
+
+.kunden-tabelle tbody td {
+  padding: 12px;
+  border-top: 1px solid #e0e0e0;
+  height:2rem;
+  max-height:27rem;
+}
+.kunden-tabelle td {
+  vertical-align: top; 
+  padding: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  margin-right: 6px;
+}
+
+.icon-btn img {
+  vertical-align: top;
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) saturate(100%) invert(25%) sepia(83%) saturate(3487%) hue-rotate(343deg) brightness(94%) contrast(101%);
+}
+.tabel-edit-btn, .tabel-del-btn {
+    background-color: transparent;
+    color: #C72E29;
     border: none;
-    border-radius: 6px;
+    cursor: pointer;
 }
 
-.register-btn {
-    background-color: #2d6a4f;
-    color: white;
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 6px;
+/* Splitter */
+#splitter {
+    height: 5px;
+    margin: 0;
+    background-color: #D3D0D0;
+    border-radius: 12px;
 }
 
-.kunden-detail-section {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2rem;
-    margin-top: 2rem;
+/* Detail Group */
+.detail-group-div {
+    background-color: white;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    margin: 0;
+}
+.detail-group-div input:focus {
+    outline: none;
+    border-color: #C72E29;
+}
+.detail-group-div label {
+    font-size: medium;
+    margin: 0;
+    display: inline-block;
 }
 
-.detail-column {
+/* Kunden Details Group */
+.kunden-details-group input {
+    height: 25px;
+    border: transparent 2px solid;
+    border-radius: 20px;
+    text-indent: 0.5rem;
+    background-color: #F1F1F1;
+}
+.kunden-details-group label{
+    width: 5rem;
+}
+.kunden-details-group select {
+    height: 25px;
+    border: transparent 2px solid;
+    border-radius: 20px;
+    text-indent: 0.5rem;
+    background-color: #F1F1F1;
+}
+.kunden-details-group {
+    margin-left: 1rem;
+    width: 40%;
+}
+
+.firma-select {
+    width: 10rem;
+}
+.details-container {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
 }
-
-    .detail-column label {
-        font-weight: 600;
-        font-size: 0.9rem;
-        margin-top: 0.8rem;
-    }
-
-    .detail-column input,
-    .detail-column select {
-        padding: 0.5rem;
-        border-radius: 6px;
-        border: 1px solid #ccc;
-        font-size: 0.9rem;
-        background-color: #fafafa;
-    }
-
-.jahreswertung-list label {
+.name-input {
+    width: 15rem;
+}
+.adresse-input {
+    width: 20.1rem;
+}
+.land-select {
+    width: 4rem;
+}
+.flag-icon {
+    width: 20px;
+    height: 15px;
+    margin-right: 2rem;
+}
+.geb-input {
+    width: 22.2rem;
+}
+.alter-input {
+    width: 2.5rem;
+    text-align: center;
+}
+.kontakt-input {
+    width: 20.1rem;
+}
+.notfall-label {
+    font-weight: bold;
+    font-size: medium;
+    color: red;
+}
+.uid-input, .sponsor-input {
+    width: 17.5rem;
+}
+.checkbox-wrapper {
+  display: flex;
+  align-items: center;
+}
+.team-select {
+    width: 19.5rem;
+}
+.gruppe-select {
+    width: 41rem;
+}
+.extra-wrapper input[type="number"] {
+    width: 6.5rem;
+    margin-right: 1rem;
+    margin-left: 0.5rem;
+}
+.extra-wrapper {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.2rem;
-    font-size: 0.9rem;
 }
 
-.footer-buttons {
+/* Bike Race Group */
+.bike-race-group {
+    margin-left: 1rem;
+    width: 100%;
+}
+.bike-race-group select {
+    height: 25px;
+    border: transparent 2px solid;
+    border-radius: 20px;
+    text-indent: 0.5rem;
+    background-color: #F1F1F1;
+    margin-right: 1rem;
+}
+.bike-race-group input {
+    height: 25px;
+    border: transparent 2px solid;
+    border-radius: 20px;
+    text-indent: 0.5rem;
+    background-color: #F1F1F1;
+    margin-right: 1rem;
+}
+
+/* Bike Wrapper */
+.bike-wrapper select,
+.bike-wrapper input {
+    width: 12rem;
+}
+.bike-wrapper {
     display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    margin-top: 2rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-    .footer-buttons button {
-        padding: 0.6rem 1.4rem;
-        font-size: 0.95rem;
-        border-radius: 8px;
-        border: none;
-        color: white;
-    }
-
-.save-btn {
-    background-color: #2d6a4f;
+/* Bike Wrapper 2 */
+.bike-wrapper2 {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.bike-wrapper2 input {
+    width: 15rem;
+}
+.letzte-buch-label{
+    width: 7rem;
 }
 
-.mail-btn {
-    background-color: #0077b6;
+/* Bike Wrapper 3 */
+.bike-wrapper3 {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.bike-wrapper3 input {
+    width: 9.9rem;
+}
+.bike-wrapper3 .letzte-einkauf-label {
+    width: 10rem;
 }
 
-.mass-mail-btn {
-    background-color: #6a4c93;
+/* Bike Wrapper 4 */
+.bike-wrapper4 {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.bike-wrapper4 input {
+    width: 9.9rem;
+}
+.bike-wrapper4 .s8s-label {
+    width: 3rem;
+}
+
+/* Jahreswertung und Laptime */
+.j-l-container {
+    display: flex;
+    flex-direction: row;
+    gap: 5rem;
+    margin: 0.5rem 0;
+}
+
+.jahreswertung-container {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+}
+.jahreswertung-wrapper label {
+    width: 10rem;
+    margin-right: 0.5rem;
 }

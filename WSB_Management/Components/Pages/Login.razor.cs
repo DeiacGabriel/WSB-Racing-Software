@@ -23,22 +23,24 @@ namespace WSB_Management.Components.Pages
 
         protected async Task HandleLogin()
         {
-            var result = await SignInManager.PasswordSignInAsync(
-                userName: Username,
-                password: Password,
-                isPersistent: false,
-                lockoutOnFailure: false);
+            Navigation.NavigateTo("/customer");
 
-            if (result.Succeeded)
-            {
-                Logger.LogInformation("User {Username} logged in successfully.", Username);
-                Navigation.NavigateTo("/");
-            }
-            else
-            {
-                ErrorMessage = "Login fehlgeschlagen. Bitte überprüfe deine Eingaben.";
-                Logger.LogWarning("Login failed for user {Username}.", Username);
-            }
+            //var result = await SignInManager.PasswordSignInAsync(
+            //    userName: Username,
+            //    password: Password,
+            //    isPersistent: false,
+            //    lockoutOnFailure: false);
+
+            //if (result.Succeeded)
+            //{
+            //    Logger.LogInformation("User {Username} logged in successfully.", Username);
+            //    Navigation.NavigateTo("/");
+            //}
+            //else
+            //{
+            //    ErrorMessage = "Login fehlgeschlagen. Bitte überprüfe deine Eingaben.";
+            //    Logger.LogWarning("Login failed for user {Username}.", Username);
+            //}
         }
     }
 }
