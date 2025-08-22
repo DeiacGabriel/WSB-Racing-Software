@@ -1,17 +1,89 @@
-﻿@inject NavigationManager navigationManager
+﻿@using Microsoft.AspNetCore.Components.Routing
+@using System.Linq
+@inject NavigationManager Nav
 @inherits LayoutComponentBase
+@implements IDisposable
 
-<div class="navbar">
-    <a class="nav-item active" href="#"><span class="material-icons">groups</span> Kunden</a>
-    <a class="nav-item" href="#"><span class="material-icons">grid_view</span> Bikes</a>
-    <a class="nav-item" href="#"><span class="material-icons">assignment</span> Rennen</a>
-    <a class="nav-item" href="#"><span class="material-icons">calendar_today</span> Kalender</a>
-    <a class="nav-item" href="#"><span class="material-icons">tv</span> Events</a>
-    <a class="nav-item" href="#"><span class="material-icons">hourglass_empty</span> Rankings</a>
-    <a class="nav-item" href="#"><span class="material-icons">bar_chart</span> Statistiken</a>
-    <a class="nav-item" href="#"><span class="material-icons">apartment</span> Management</a>
-    <a class="nav-item" href="#"><span class="material-icons">person</span> Einstellungen</a>
+<div class="navbar-custom">
+    <NavLink href="/customer" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
+        <span class="material-symbols-outlined">group</span> Kunden
+    </NavLink>
+    <NavLink href="/races" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
+        <span class="material-symbols-outlined">
+            assignment
+        </span> Rennen
+    </NavLink>
+    <NavLink href="/calendar" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
+        <span class="material-symbols-outlined">
+            calendar_month
+        </span> Kalender
+    </NavLink>
+    <NavLink href="/events" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
+        <span class="material-symbols-outlined">tv</span> Events
+    </NavLink>
+    <NavLink href="/rankings" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
+        <span class="material-symbols-outlined">hourglass_empty</span> Rankings
+    </NavLink>
+    <NavLink href="/statistics" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
+        <span class="material-symbols-outlined">bar_chart</span> Statistiken
+    </NavLink>
+
+    <!-- Dropdown Stammdaten -->
+    <Dropdown Class="nav-item dropdown">
+        <DropdownToggleButton Class="dropdown-toggle">
+            <span class="material-symbols-outlined">list</span>
+            <span>Stammdaten</span>
+        </DropdownToggleButton>
+
+        <DropdownMenu>
+            @foreach (var o in MgmtOptions)
+            {
+                <DropdownItem
+                    To="@o.Path"
+                    Type="DropdownItemType.Link"
+                    Class="nav-item"
+                    Active="@IsPathActive(o.Path)">
+                    @o.Label
+                </DropdownItem>
+            }
+        </DropdownMenu>
+    </Dropdown>
+
+    <NavLink href="/settings" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
+        <span class="material-symbols-outlined">settings</span> Einstellungen
+    </NavLink>
 </div>
-<div>
-    @Body
-</div>
+
+@code {
+    private record MgmtItem(string Label, string Path);
+
+    private readonly MgmtItem[] MgmtOptions = new[] {
+        new MgmtItem("Events",      "/management/events"),
+        new MgmtItem("Bikes",       "/management/bikes"),
+        new MgmtItem("Transponder", "/management/transponder"),
+        new MgmtItem("Länder",      "/management/countries"),
+        new MgmtItem("Marken",      "/management/brands"),
+    };
+
+    private bool IsMgmtActive => new Uri(Nav.Uri).AbsolutePath
+        .StartsWith("/management", StringComparison.OrdinalIgnoreCase);
+
+    private bool IsPathActive(string path) =>
+        new Uri(Nav.Uri).AbsolutePath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += HandleLocationChanged;
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // Damit Active-Styles sofort updaten
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= HandleLocationChanged;
+    }
+}

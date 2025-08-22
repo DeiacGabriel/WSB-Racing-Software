@@ -1,0 +1,48 @@
+﻿@using System.Globalization
+@using WSB_Management.Models
+@inherits InputBase<Gruppe?>
+
+<select class="@CssClass"
+        @attributes="AdditionalAttributes"
+        @bind="CurrentValueAsString">
+    <option value="">– Gruppe wählen –</option>
+    @if (Items != null)
+    {
+        foreach (var g in Items)
+        {
+            <option value="@g.Id">@BuildText(g)</option>
+        }
+    }
+</select>
+
+@code {
+    [Parameter] public IEnumerable<Gruppe>? Items { get; set; }
+    [Parameter] public Func<Gruppe, string>? TextSelector { get; set; }
+
+    protected override bool TryParseValueFromString(string? value, out Gruppe? result, out string? validationErrorMessage)
+    {
+        result = null;
+        validationErrorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(value))
+            return true; // -> null
+
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+        {
+            result = Items?.FirstOrDefault(x => x.Id == id);
+            if (result != null) return true;
+
+            validationErrorMessage = $"Unbekannte Gruppen-Id: {id}";
+            return false;
+        }
+
+        validationErrorMessage = "Ungültige Eingabe.";
+        return false;
+    }
+
+    protected override string? FormatValueAsString(Gruppe? value)
+        => value?.Id.ToString(CultureInfo.InvariantCulture);
+
+    private string BuildText(Gruppe g)
+        => TextSelector?.Invoke(g) ?? g.Name;
+}

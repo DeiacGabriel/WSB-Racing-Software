@@ -1,0 +1,48 @@
+﻿@using System.Globalization
+@using WSB_Management.Models
+@inherits InputBase<Country?>
+
+<select class="@CssClass"
+        @attributes="AdditionalAttributes"
+        @bind="CurrentValueAsString">
+    <option value="">– Land wählen –</option>
+    @if (Items != null)
+    {
+        foreach (var c in Items)
+        {
+            <option value="@c.Id">@BuildText(c)</option>
+        }
+    }
+</select>
+
+@code {
+    [Parameter] public IEnumerable<Country>? Items { get; set; }
+    [Parameter] public Func<Country, string>? TextSelector { get; set; }
+
+    protected override bool TryParseValueFromString(string? value, out Country? result, out string? validationErrorMessage)
+    {
+        result = null;
+        validationErrorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(value))
+            return true; // -> null
+
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+        {
+            result = Items?.FirstOrDefault(x => x.Id == id);
+            if (result != null) return true;
+
+            validationErrorMessage = $"Unbekannte Country-Id: {id}";
+            return false;
+        }
+
+        validationErrorMessage = "Ungültige Eingabe.";
+        return false;
+    }
+
+    protected override string? FormatValueAsString(Country? value)
+        => value?.Id.ToString(CultureInfo.InvariantCulture);
+
+    private string BuildText(Country c)
+        => TextSelector?.Invoke(c) ?? $"{c.Shorttxt} ({c.Longtxt})";
+}

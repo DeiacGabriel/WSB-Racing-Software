@@ -1,19 +1,19 @@
-﻿.navbar {
+﻿.navbar-custom {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 32px;
-    padding: 12px 30px;
+    padding: 2px 0px;
     background-color: #fff;
     border-bottom: 1px solid #ddd;
-    position: fixed;
-    top: 0;
-    left: 0;
     width: 100%;
+    gap:15px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    z-index: 1000;
 }
+button {
+    padding: 0;
+    gap: 5px;
 
+}
 .nav-item {
     display: flex;
     align-items: center;
@@ -21,7 +21,6 @@
     border-radius: 8px;
     color: #333;
     cursor: pointer;
-    font-size: 14px;
     gap: 8px;
     text-decoration: none;
 }
@@ -30,7 +29,7 @@
         background-color: #f0f0f0;
     }
 
-    .nav-item.active {
+    .nav-item.active, .dropdown-item.active, .dropdown-item:active {
         background-color: #fceeee;
         color: #c62828;
         font-weight: bold;
@@ -39,3 +38,13 @@
     .nav-item .material-icons {
         font-size: 18px;
     }
+
+.dropdown-toggle:hover {
+    background-color: #f0f0f0;
+    color: white;
+}
+.dropdown-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+}

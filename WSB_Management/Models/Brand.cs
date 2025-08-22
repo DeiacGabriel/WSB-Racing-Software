@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using WSB_Management.Converter;
 
 namespace WSB_Management.Models;
-
+[TypeConverter(typeof(BrandTypeConverter))]
 public class Brand
 {
     public long Id { get; set; }
-
-    public string Name { get; set; } = null!;
-
-    public virtual ObservableCollection<Bike> Bikes { get; set; }
+    public string Name { get; set; }
 }

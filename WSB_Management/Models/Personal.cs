@@ -6,9 +6,9 @@ namespace WSB_Management.Models
 {
     public class Personal : IdentityUser<int>
     {
-        public string Name { get; set; } = string.Empty;
-        public string Surname { get; set; } = string.Empty;
-        public string Position { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
+        public string Name { get; set; }
+        public string Surname { get; set; }
+        public string Position { get; set; }
+        public string Description { get; set; }
     }
 }

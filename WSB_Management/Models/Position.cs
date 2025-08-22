@@ -1,6 +1,8 @@
-﻿namespace WSB_Management.Models
+﻿using Microsoft.AspNetCore.Identity;
+
+namespace WSB_Management.Models
 {
-    public class Position
+    public class Position : IdentityRole<int>
     {
         public int PositionId { get; set; }
         public string PositionName { get; set; }

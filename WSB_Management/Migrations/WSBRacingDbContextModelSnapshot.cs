@@ -16,36 +16,8 @@ namespace WSB_Management.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.6")
-                .HasAnnotation("Relational:DisableMigrationsLocking", true)
+                .HasAnnotation("ProductVersion", "9.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<int>", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.Property<string>("NormalizedName")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedName")
-                        .IsUnique()
-                        .HasDatabaseName("RoleNameIndex");
-
-                    b.ToTable("AspNetRoles", (string)null);
-                });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
                 {
@@ -156,10 +128,7 @@ namespace WSB_Management.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<long>("Countryid")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("Customerid")
+                    b.Property<long>("CountryId")
                         .HasColumnType("bigint");
 
                     b.Property<string>("Street")
@@ -172,11 +141,9 @@ namespace WSB_Management.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Countryid");
+                    b.HasIndex("CountryId");
 
-                    b.HasIndex("Customerid");
-
-                    b.ToTable("address", (string)null);
+                    b.ToTable("Addresses");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Bike", b =>
@@ -185,23 +152,25 @@ namespace WSB_Management.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
-                    b.Property<long>("Brandid")
+                    b.Property<long>("BrandId")
                         .HasColumnType("bigint");
 
-                    b.Property<int?>("Ccm")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Type")
+                    b.Property<string>("Ccm")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<int?>("Year")
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Year")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Brandid");
+                    b.HasIndex("BrandId");
 
-                    b.ToTable("bike", (string)null);
+                    b.ToTable("Bikes");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Brand", b =>
@@ -216,7 +185,7 @@ namespace WSB_Management.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("brand", (string)null);
+                    b.ToTable("Brands");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Contact", b =>
@@ -225,23 +194,55 @@ namespace WSB_Management.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
-                    b.Property<long>("Customerid")
-                        .HasColumnType("bigint");
-
                     b.Property<string>("Firstname")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("Phonenumber")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("Surname")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Customerid");
+                    b.ToTable("Contacts");
+                });
 
-                    b.ToTable("contact", (string)null);
+            modelBuilder.Entity("WSB_Management.Models.CostumerEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BikeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("EventId")
+                        .HasColumnType("bigint");
+
+                    b.Property<TimeSpan>("Laptime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<long>("TransponderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BikeId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("TransponderId");
+
+                    b.ToTable("CustomerEvents");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Country", b =>
@@ -249,6 +250,10 @@ namespace WSB_Management.Migrations
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
+
+                    b.Property<string>("FlagPath")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Longtxt")
                         .IsRequired()
@@ -260,7 +265,7 @@ namespace WSB_Management.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("country", (string)null);
+                    b.ToTable("Countries");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Cup", b =>
@@ -275,7 +280,7 @@ namespace WSB_Management.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("cup", (string)null);
+                    b.ToTable("Cups");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Customer", b =>
@@ -284,117 +289,116 @@ namespace WSB_Management.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    b.Property<long>("AddressId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BikeId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime>("Birthdate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("Firstname")
+                    b.Property<long>("ContactId")
+                        .HasColumnType("bigint");
+
+                    b.Property<double>("Gratisfahrer")
+                        .HasColumnType("double");
+
+                    b.Property<long>("GruppeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<double>("Guthaben")
+                        .HasColumnType("double");
+
+                    b.Property<string>("GuthabenComment")
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<DateTime>("LastGuthabenAdd")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<double>("LastGuthabenAddNumber")
+                        .HasColumnType("double");
+
                     b.Property<string>("Mail")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<bool?>("Newsletter")
+                    b.Property<bool>("Newsletter")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("Phonenumber")
+                    b.Property<long>("NotfallContactId")
+                        .HasColumnType("bigint");
+
+                    b.Property<double>("Preisgeld")
+                        .HasColumnType("double");
+
+                    b.Property<string>("S8S")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<double>("Schurke")
+                        .HasColumnType("double");
+
                     b.Property<string>("Sex")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Speeddays")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Sponsor")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("Startnumber")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Surname")
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<long?>("TeamId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Title")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<DateTime?>("Validfrom")
+                    b.Property<long>("TransponderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UID")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("Validfrom")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("VerzichtOk")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime>("letzteBuchung")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("letzterEinkauf")
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("customer", (string)null);
-                });
+                    b.HasIndex("AddressId");
 
-            modelBuilder.Entity("WSB_Management.Models.CustomerBike", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
+                    b.HasIndex("BikeId");
 
-                    b.Property<long>("Bikeid")
-                        .HasColumnType("bigint");
+                    b.HasIndex("ContactId");
 
-                    b.Property<long>("Customerid")
-                        .HasColumnType("bigint");
+                    b.HasIndex("GruppeId");
 
-                    b.HasKey("Id");
+                    b.HasIndex("NotfallContactId");
 
-                    b.HasIndex("Bikeid");
+                    b.HasIndex("TeamId");
 
-                    b.HasIndex("Customerid");
+                    b.HasIndex("TransponderId");
 
-                    b.ToTable("customer_bike", (string)null);
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.CustomerCup", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("Cupid")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("Customerid")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Cupid");
-
-                    b.HasIndex("Customerid");
-
-                    b.ToTable("customer_cup", (string)null);
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.CustomerEvent", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("Bikeid")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("Customerid")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("Eventid")
-                        .HasColumnType("bigint");
-
-                    b.Property<TimeSpan?>("Laptime")
-                        .HasColumnType("time(6)");
-
-                    b.Property<long>("Transponderid")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Bikeid");
-
-                    b.HasIndex("Customerid");
-
-                    b.HasIndex("Eventid");
-
-                    b.HasIndex("Transponderid");
-
-                    b.ToTable("customer_event", (string)null);
+                    b.ToTable("Customers");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Event", b =>
@@ -418,7 +422,22 @@ namespace WSB_Management.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("event", (string)null);
+                    b.ToTable("Events");
+                });
+
+            modelBuilder.Entity("WSB_Management.Models.Gruppe", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Gruppes");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Personal", b =>
@@ -504,17 +523,61 @@ namespace WSB_Management.Migrations
 
             modelBuilder.Entity("WSB_Management.Models.Position", b =>
                 {
-                    b.Property<int>("PositionId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<int>("PositionId")
                         .HasColumnType("int");
 
                     b.Property<string>("PositionName")
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.HasKey("PositionId");
+                    b.HasKey("Id");
 
-                    b.ToTable("Positions", (string)null);
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("RoleNameIndex");
+
+                    b.ToTable("AspNetRoles", (string)null);
+                });
+
+            modelBuilder.Entity("WSB_Management.Models.Team", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CupId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<long?>("TeamChefId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CupId");
+
+                    b.HasIndex("TeamChefId");
+
+                    b.ToTable("Teams");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Transponder", b =>
@@ -523,18 +586,22 @@ namespace WSB_Management.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
+                    b.Property<string>("Bezeichung")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Number")
                         .IsRequired()
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
-                    b.ToTable("transponder", (string)null);
+                    b.ToTable("Transponders");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
+                    b.HasOne("WSB_Management.Models.Position", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -561,7 +628,7 @@ namespace WSB_Management.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<int>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
+                    b.HasOne("WSB_Management.Models.Position", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -586,105 +653,48 @@ namespace WSB_Management.Migrations
             modelBuilder.Entity("WSB_Management.Models.Address", b =>
                 {
                     b.HasOne("WSB_Management.Models.Country", "Country")
-                        .WithMany("Addresses")
-                        .HasForeignKey("Countryid")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("WSB_Management.Models.Customer", "Customer")
-                        .WithMany("Addresses")
-                        .HasForeignKey("Customerid")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .WithMany()
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Country");
-
-                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Bike", b =>
                 {
                     b.HasOne("WSB_Management.Models.Brand", "Brand")
-                        .WithMany("Bikes")
-                        .HasForeignKey("Brandid")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .WithMany()
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Brand");
                 });
 
-            modelBuilder.Entity("WSB_Management.Models.Contact", b =>
-                {
-                    b.HasOne("WSB_Management.Models.Customer", "Customer")
-                        .WithMany("Contacts")
-                        .HasForeignKey("Customerid")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.CustomerBike", b =>
+            modelBuilder.Entity("WSB_Management.Models.CostumerEvent", b =>
                 {
                     b.HasOne("WSB_Management.Models.Bike", "Bike")
-                        .WithMany("CustomerBikes")
-                        .HasForeignKey("Bikeid")
+                        .WithMany()
+                        .HasForeignKey("BikeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("WSB_Management.Models.Customer", "Customer")
-                        .WithMany("CustomerBikes")
-                        .HasForeignKey("Customerid")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Bike");
-
-                    b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.CustomerCup", b =>
-                {
-                    b.HasOne("WSB_Management.Models.Cup", "Cup")
-                        .WithMany("CustomerCups")
-                        .HasForeignKey("Cupid")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WSB_Management.Models.Customer", "Customer")
-                        .WithMany("CustomerCups")
-                        .HasForeignKey("Customerid")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Cup");
-
-                    b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.CustomerEvent", b =>
-                {
-                    b.HasOne("WSB_Management.Models.Bike", "Bike")
-                        .WithMany("CustomerEvents")
-                        .HasForeignKey("Bikeid")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WSB_Management.Models.Customer", "Customer")
-                        .WithMany("CustomerEvents")
-                        .HasForeignKey("Customerid")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("WSB_Management.Models.Event", "Event")
-                        .WithMany("CustomerEvents")
-                        .HasForeignKey("Eventid")
+                        .WithMany()
+                        .HasForeignKey("EventId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("WSB_Management.Models.Transponder", "Transponder")
-                        .WithMany("CustomerEvents")
-                        .HasForeignKey("Transponderid")
+                        .WithMany()
+                        .HasForeignKey("TransponderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -697,49 +707,87 @@ namespace WSB_Management.Migrations
                     b.Navigation("Transponder");
                 });
 
+            modelBuilder.Entity("WSB_Management.Models.Customer", b =>
+                {
+                    b.HasOne("WSB_Management.Models.Address", "Address")
+                        .WithMany()
+                        .HasForeignKey("AddressId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WSB_Management.Models.Bike", "Bike")
+                        .WithMany("Customers")
+                        .HasForeignKey("BikeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WSB_Management.Models.Contact", "Contact")
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WSB_Management.Models.Gruppe", "Gruppe")
+                        .WithMany()
+                        .HasForeignKey("GruppeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WSB_Management.Models.Contact", "NotfallContact")
+                        .WithMany()
+                        .HasForeignKey("NotfallContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WSB_Management.Models.Team", null)
+                        .WithMany("Members")
+                        .HasForeignKey("TeamId");
+
+                    b.HasOne("WSB_Management.Models.Transponder", "Transponder")
+                        .WithMany()
+                        .HasForeignKey("TransponderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Address");
+
+                    b.Navigation("Bike");
+
+                    b.Navigation("Contact");
+
+                    b.Navigation("Gruppe");
+
+                    b.Navigation("NotfallContact");
+
+                    b.Navigation("Transponder");
+                });
+
+            modelBuilder.Entity("WSB_Management.Models.Team", b =>
+                {
+                    b.HasOne("WSB_Management.Models.Cup", null)
+                        .WithMany("CupTeams")
+                        .HasForeignKey("CupId");
+
+                    b.HasOne("WSB_Management.Models.Customer", "TeamChef")
+                        .WithMany()
+                        .HasForeignKey("TeamChefId");
+
+                    b.Navigation("TeamChef");
+                });
+
             modelBuilder.Entity("WSB_Management.Models.Bike", b =>
                 {
-                    b.Navigation("CustomerBikes");
-
-                    b.Navigation("CustomerEvents");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.Brand", b =>
-                {
-                    b.Navigation("Bikes");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.Country", b =>
-                {
-                    b.Navigation("Addresses");
+                    b.Navigation("Customers");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Cup", b =>
                 {
-                    b.Navigation("CustomerCups");
+                    b.Navigation("CupTeams");
                 });
 
-            modelBuilder.Entity("WSB_Management.Models.Customer", b =>
+            modelBuilder.Entity("WSB_Management.Models.Team", b =>
                 {
-                    b.Navigation("Addresses");
-
-                    b.Navigation("Contacts");
-
-                    b.Navigation("CustomerBikes");
-
-                    b.Navigation("CustomerCups");
-
-                    b.Navigation("CustomerEvents");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.Event", b =>
-                {
-                    b.Navigation("CustomerEvents");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.Transponder", b =>
-                {
-                    b.Navigation("CustomerEvents");
+                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }

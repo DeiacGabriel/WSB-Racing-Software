@@ -7,7 +7,7 @@ using MySql.EntityFrameworkCore.Metadata;
 namespace WSB_Management.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class InitDB : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -21,6 +21,8 @@ namespace WSB_Management.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                    PositionId = table.Column<int>(type: "int", nullable: false),
+                    PositionName = table.Column<string>(type: "longtext", nullable: false),
                     Name = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: true),
                     NormalizedName = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: true),
                     ConcurrencyStamp = table.Column<string>(type: "longtext", nullable: true)
@@ -63,7 +65,7 @@ namespace WSB_Management.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "brand",
+                name: "Brands",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
@@ -72,27 +74,44 @@ namespace WSB_Management.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_brand", x => x.Id);
+                    table.PrimaryKey("PK_Brands", x => x.Id);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "country",
+                name: "Contacts",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                    Firstname = table.Column<string>(type: "longtext", nullable: false),
+                    Surname = table.Column<string>(type: "longtext", nullable: false),
+                    Phonenumber = table.Column<string>(type: "longtext", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Contacts", x => x.Id);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Countries",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     Shorttxt = table.Column<string>(type: "longtext", nullable: false),
-                    Longtxt = table.Column<string>(type: "longtext", nullable: false)
+                    Longtxt = table.Column<string>(type: "longtext", nullable: false),
+                    FlagPath = table.Column<string>(type: "longtext", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_country", x => x.Id);
+                    table.PrimaryKey("PK_Countries", x => x.Id);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "cup",
+                name: "Cups",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
@@ -101,35 +120,12 @@ namespace WSB_Management.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_cup", x => x.Id);
+                    table.PrimaryKey("PK_Cups", x => x.Id);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "customer",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    Title = table.Column<string>(type: "longtext", nullable: true),
-                    Firstname = table.Column<string>(type: "longtext", nullable: false),
-                    Surname = table.Column<string>(type: "longtext", nullable: false),
-                    Birthdate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    Sex = table.Column<string>(type: "longtext", nullable: true),
-                    Mail = table.Column<string>(type: "longtext", nullable: true),
-                    Phonenumber = table.Column<string>(type: "longtext", nullable: true),
-                    Newsletter = table.Column<bool>(type: "tinyint(1)", nullable: true),
-                    Validfrom = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    Startnumber = table.Column<string>(type: "longtext", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_customer", x => x.Id);
-                })
-                .Annotation("MySQL:Charset", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "event",
+                name: "Events",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
@@ -141,35 +137,36 @@ namespace WSB_Management.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_event", x => x.Id);
+                    table.PrimaryKey("PK_Events", x => x.Id);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Positions",
-                columns: table => new
-                {
-                    PositionId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    PositionName = table.Column<string>(type: "longtext", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Positions", x => x.PositionId);
-                })
-                .Annotation("MySQL:Charset", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "transponder",
+                name: "Gruppes",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                    Name = table.Column<string>(type: "longtext", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Gruppes", x => x.Id);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Transponders",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
+                    Bezeichung = table.Column<string>(type: "longtext", nullable: false),
                     Number = table.Column<string>(type: "longtext", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_transponder", x => x.Id);
+                    table.PrimaryKey("PK_Transponders", x => x.Id);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
@@ -285,186 +282,195 @@ namespace WSB_Management.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "bike",
+                name: "Bikes",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    Brandid = table.Column<long>(type: "bigint", nullable: false),
-                    Type = table.Column<string>(type: "longtext", nullable: true),
-                    Ccm = table.Column<int>(type: "int", nullable: true),
-                    Year = table.Column<int>(type: "int", nullable: true)
+                    Type = table.Column<string>(type: "longtext", nullable: false),
+                    Ccm = table.Column<string>(type: "longtext", nullable: false),
+                    Year = table.Column<int>(type: "int", nullable: false),
+                    BrandId = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_bike", x => x.Id);
+                    table.PrimaryKey("PK_Bikes", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_bike_brand_Brandid",
-                        column: x => x.Brandid,
-                        principalTable: "brand",
+                        name: "FK_Bikes_Brands_BrandId",
+                        column: x => x.BrandId,
+                        principalTable: "Brands",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "address",
+                name: "Addresses",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    Customerid = table.Column<long>(type: "bigint", nullable: false),
-                    Countryid = table.Column<long>(type: "bigint", nullable: false),
                     City = table.Column<string>(type: "longtext", nullable: false),
                     Zip = table.Column<string>(type: "longtext", nullable: false),
-                    Street = table.Column<string>(type: "longtext", nullable: false)
+                    Street = table.Column<string>(type: "longtext", nullable: false),
+                    CountryId = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_address", x => x.Id);
+                    table.PrimaryKey("PK_Addresses", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_address_country_Countryid",
-                        column: x => x.Countryid,
-                        principalTable: "country",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_address_customer_Customerid",
-                        column: x => x.Customerid,
-                        principalTable: "customer",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                })
-                .Annotation("MySQL:Charset", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "contact",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    Customerid = table.Column<long>(type: "bigint", nullable: false),
-                    Firstname = table.Column<string>(type: "longtext", nullable: true),
-                    Surname = table.Column<string>(type: "longtext", nullable: true),
-                    Phonenumber = table.Column<string>(type: "longtext", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_contact", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_contact_customer_Customerid",
-                        column: x => x.Customerid,
-                        principalTable: "customer",
+                        name: "FK_Addresses_Countries_CountryId",
+                        column: x => x.CountryId,
+                        principalTable: "Countries",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "customer_cup",
+                name: "CustomerEvents",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    Customerid = table.Column<long>(type: "bigint", nullable: false),
-                    Cupid = table.Column<long>(type: "bigint", nullable: false)
+                    Laptime = table.Column<TimeSpan>(type: "time(6)", nullable: false),
+                    BikeId = table.Column<long>(type: "bigint", nullable: false),
+                    CustomerId = table.Column<long>(type: "bigint", nullable: false),
+                    EventId = table.Column<long>(type: "bigint", nullable: false),
+                    TransponderId = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_customer_cup", x => x.Id);
+                    table.PrimaryKey("PK_CustomerEvents", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_customer_cup_cup_Cupid",
-                        column: x => x.Cupid,
-                        principalTable: "cup",
+                        name: "FK_CustomerEvents_Bikes_BikeId",
+                        column: x => x.BikeId,
+                        principalTable: "Bikes",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_customer_cup_customer_Customerid",
-                        column: x => x.Customerid,
-                        principalTable: "customer",
+                        name: "FK_CustomerEvents_Events_EventId",
+                        column: x => x.EventId,
+                        principalTable: "Events",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_CustomerEvents_Transponders_TransponderId",
+                        column: x => x.TransponderId,
+                        principalTable: "Transponders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "customer_bike",
+                name: "Customers",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    Customerid = table.Column<long>(type: "bigint", nullable: false),
-                    Bikeid = table.Column<long>(type: "bigint", nullable: false)
+                    Title = table.Column<string>(type: "longtext", nullable: false),
+                    Sex = table.Column<string>(type: "longtext", nullable: false),
+                    ContactId = table.Column<long>(type: "bigint", nullable: false),
+                    Birthdate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    Mail = table.Column<string>(type: "longtext", nullable: false),
+                    Newsletter = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    Validfrom = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    Startnumber = table.Column<string>(type: "longtext", nullable: false),
+                    AddressId = table.Column<long>(type: "bigint", nullable: false),
+                    NotfallContactId = table.Column<long>(type: "bigint", nullable: false),
+                    Sponsor = table.Column<string>(type: "longtext", nullable: false),
+                    UID = table.Column<string>(type: "longtext", nullable: false),
+                    Guthaben = table.Column<double>(type: "double", nullable: false),
+                    LastGuthabenAdd = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    LastGuthabenAddNumber = table.Column<double>(type: "double", nullable: false),
+                    GuthabenComment = table.Column<string>(type: "longtext", nullable: false),
+                    Preisgeld = table.Column<double>(type: "double", nullable: false),
+                    Gratisfahrer = table.Column<double>(type: "double", nullable: false),
+                    Schurke = table.Column<double>(type: "double", nullable: false),
+                    VerzichtOk = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    GruppeId = table.Column<long>(type: "bigint", nullable: false),
+                    letzteBuchung = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    letzterEinkauf = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    BikeId = table.Column<long>(type: "bigint", nullable: false),
+                    TransponderId = table.Column<long>(type: "bigint", nullable: false),
+                    S8S = table.Column<string>(type: "longtext", nullable: false),
+                    Speeddays = table.Column<string>(type: "longtext", nullable: false),
+                    TeamId = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_customer_bike", x => x.Id);
+                    table.PrimaryKey("PK_Customers", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_customer_bike_bike_Bikeid",
-                        column: x => x.Bikeid,
-                        principalTable: "bike",
+                        name: "FK_Customers_Addresses_AddressId",
+                        column: x => x.AddressId,
+                        principalTable: "Addresses",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_customer_bike_customer_Customerid",
-                        column: x => x.Customerid,
-                        principalTable: "customer",
+                        name: "FK_Customers_Bikes_BikeId",
+                        column: x => x.BikeId,
+                        principalTable: "Bikes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Customers_Contacts_ContactId",
+                        column: x => x.ContactId,
+                        principalTable: "Contacts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Customers_Contacts_NotfallContactId",
+                        column: x => x.NotfallContactId,
+                        principalTable: "Contacts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Customers_Gruppes_GruppeId",
+                        column: x => x.GruppeId,
+                        principalTable: "Gruppes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Customers_Transponders_TransponderId",
+                        column: x => x.TransponderId,
+                        principalTable: "Transponders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "customer_event",
+                name: "Teams",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    Customerid = table.Column<long>(type: "bigint", nullable: false),
-                    Eventid = table.Column<long>(type: "bigint", nullable: false),
-                    Bikeid = table.Column<long>(type: "bigint", nullable: false),
-                    Transponderid = table.Column<long>(type: "bigint", nullable: false),
-                    Laptime = table.Column<TimeSpan>(type: "time(6)", nullable: true)
+                    Name = table.Column<string>(type: "longtext", nullable: false),
+                    TeamChefId = table.Column<long>(type: "bigint", nullable: false),
+                    CupId = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_customer_event", x => x.Id);
+                    table.PrimaryKey("PK_Teams", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_customer_event_bike_Bikeid",
-                        column: x => x.Bikeid,
-                        principalTable: "bike",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        name: "FK_Teams_Cups_CupId",
+                        column: x => x.CupId,
+                        principalTable: "Cups",
+                        principalColumn: "Id");
                     table.ForeignKey(
-                        name: "FK_customer_event_customer_Customerid",
-                        column: x => x.Customerid,
-                        principalTable: "customer",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_customer_event_event_Eventid",
-                        column: x => x.Eventid,
-                        principalTable: "event",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_customer_event_transponder_Transponderid",
-                        column: x => x.Transponderid,
-                        principalTable: "transponder",
+                        name: "FK_Teams_Customers_TeamChefId",
+                        column: x => x.TeamChefId,
+                        principalTable: "Customers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateIndex(
-                name: "IX_address_Countryid",
-                table: "address",
-                column: "Countryid");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_address_Customerid",
-                table: "address",
-                column: "Customerid");
+                name: "IX_Addresses_CountryId",
+                table: "Addresses",
+                column: "CountryId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
@@ -504,61 +510,109 @@ namespace WSB_Management.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_bike_Brandid",
-                table: "bike",
-                column: "Brandid");
+                name: "IX_Bikes_BrandId",
+                table: "Bikes",
+                column: "BrandId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_contact_Customerid",
-                table: "contact",
-                column: "Customerid");
+                name: "IX_CustomerEvents_BikeId",
+                table: "CustomerEvents",
+                column: "BikeId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_customer_bike_Bikeid",
-                table: "customer_bike",
-                column: "Bikeid");
+                name: "IX_CustomerEvents_CustomerId",
+                table: "CustomerEvents",
+                column: "CustomerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_customer_bike_Customerid",
-                table: "customer_bike",
-                column: "Customerid");
+                name: "IX_CustomerEvents_EventId",
+                table: "CustomerEvents",
+                column: "EventId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_customer_cup_Cupid",
-                table: "customer_cup",
-                column: "Cupid");
+                name: "IX_CustomerEvents_TransponderId",
+                table: "CustomerEvents",
+                column: "TransponderId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_customer_cup_Customerid",
-                table: "customer_cup",
-                column: "Customerid");
+                name: "IX_Customers_AddressId",
+                table: "Customers",
+                column: "AddressId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_customer_event_Bikeid",
-                table: "customer_event",
-                column: "Bikeid");
+                name: "IX_Customers_BikeId",
+                table: "Customers",
+                column: "BikeId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_customer_event_Customerid",
-                table: "customer_event",
-                column: "Customerid");
+                name: "IX_Customers_ContactId",
+                table: "Customers",
+                column: "ContactId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_customer_event_Eventid",
-                table: "customer_event",
-                column: "Eventid");
+                name: "IX_Customers_GruppeId",
+                table: "Customers",
+                column: "GruppeId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_customer_event_Transponderid",
-                table: "customer_event",
-                column: "Transponderid");
+                name: "IX_Customers_NotfallContactId",
+                table: "Customers",
+                column: "NotfallContactId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Customers_TeamId",
+                table: "Customers",
+                column: "TeamId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Customers_TransponderId",
+                table: "Customers",
+                column: "TransponderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Teams_CupId",
+                table: "Teams",
+                column: "CupId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Teams_TeamChefId",
+                table: "Teams",
+                column: "TeamChefId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_CustomerEvents_Customers_CustomerId",
+                table: "CustomerEvents",
+                column: "CustomerId",
+                principalTable: "Customers",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Customers_Teams_TeamId",
+                table: "Customers",
+                column: "TeamId",
+                principalTable: "Teams",
+                principalColumn: "Id");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "address");
+            migrationBuilder.DropForeignKey(
+                name: "FK_Addresses_Countries_CountryId",
+                table: "Addresses");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_Bikes_Brands_BrandId",
+                table: "Bikes");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_Customers_Bikes_BikeId",
+                table: "Customers");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_Teams_Customers_TeamChefId",
+                table: "Teams");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");
@@ -576,22 +630,7 @@ namespace WSB_Management.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
-                name: "contact");
-
-            migrationBuilder.DropTable(
-                name: "customer_bike");
-
-            migrationBuilder.DropTable(
-                name: "customer_cup");
-
-            migrationBuilder.DropTable(
-                name: "customer_event");
-
-            migrationBuilder.DropTable(
-                name: "Positions");
-
-            migrationBuilder.DropTable(
-                name: "country");
+                name: "CustomerEvents");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
@@ -600,22 +639,37 @@ namespace WSB_Management.Migrations
                 name: "AspNetUsers");
 
             migrationBuilder.DropTable(
-                name: "cup");
+                name: "Events");
 
             migrationBuilder.DropTable(
-                name: "bike");
+                name: "Countries");
 
             migrationBuilder.DropTable(
-                name: "customer");
+                name: "Brands");
 
             migrationBuilder.DropTable(
-                name: "event");
+                name: "Bikes");
 
             migrationBuilder.DropTable(
-                name: "transponder");
+                name: "Customers");
 
             migrationBuilder.DropTable(
-                name: "brand");
+                name: "Addresses");
+
+            migrationBuilder.DropTable(
+                name: "Contacts");
+
+            migrationBuilder.DropTable(
+                name: "Gruppes");
+
+            migrationBuilder.DropTable(
+                name: "Teams");
+
+            migrationBuilder.DropTable(
+                name: "Transponders");
+
+            migrationBuilder.DropTable(
+                name: "Cups");
         }
     }
 }

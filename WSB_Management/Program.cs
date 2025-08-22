@@ -16,7 +16,7 @@ public class Program
         builder.Services.AddDbContext<WSBRacingDbContext>(options =>
             options.UseMySQL(connectionString ?? throw new InvalidOperationException("MySQLConnection not configured.")));
 
-        
+        builder.Services.AddBlazorBootstrap();
         builder.Services.AddIdentity<Personal, IdentityRole<int>>(options =>
         {
             options.SignIn.RequireConfirmedAccount = false;

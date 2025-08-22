@@ -1,0 +1,268 @@
+﻿@using WSB_Management.Components.Customs
+@using WSB_Management.Components.Layout
+@using System.ComponentModel.DataAnnotations
+@using WSB_Management.Models
+
+@page "/customer"
+@rendermode InteractiveServer
+@layout MainLayout
+
+<PageTitle>WSB-Sport - Kunde</PageTitle>
+<HeadContent>
+    <link rel="stylesheet" href="@Assets["customer.css"]" />
+</HeadContent>
+<div class="group-div" style="height: 34rem;">
+    <div class="kunden-liste-header">
+        <p class="kunden-titel">Liste aller Kunden</p>
+        <div class="header-btn">
+            <button class="excel-btn"><img src="./download_icon.svg" alt="Dw Icon">Export to Excel</button>
+            <button class="regis-kunde-btn"><img src="./add_icon.svg" alt="Add Icon">Kunde anmelden</button>
+        </div>
+    </div>
+    <div class="grid-scroll-wrapper">
+        <Grid TItem="Customer"
+              Class="table table-hover table-bordered table-striped"
+              AllowSorting="true"
+              AllowFiltering="true"
+              AllowSelection="true"
+              Responsive="true"
+              AllowPaging="false"
+              DataProvider="CustomerDataProvider"
+              RowKeySelector="c => c.Id"
+              SelectionMode="GridSelectionMode.Single"
+              SelectedItemsChanged="OnSelectedItemsChanged"
+              Style="height:28.5rem;">
+
+            <GridColumns>
+                <GridColumn TItem="Customer" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id">
+                    @context.Id
+                </GridColumn>
+
+                <GridColumn TItem="Customer" HeaderText="Nachname" PropertyName="Surname" SortKeySelector="x => x.Contact.Surname">
+                    context.Contact.Surname
+                </GridColumn>
+
+                <GridColumn TItem="Customer" HeaderText="Vorname" PropertyName="Firstname" SortKeySelector="x => x.Contact.Firstname">
+                    context.Contact.Firstname
+                </GridColumn>
+
+                <GridColumn TItem="Customer" HeaderText="Email" PropertyName="Mail" SortKeySelector="x => x.Mail">
+                    @context.Mail
+                </GridColumn>
+
+                <GridColumn TItem="Customer" HeaderText="Telefon" PropertyName="Phonenumber" SortKeySelector="x => x.Contact.Phonenumber">
+                    @context.Contact.Phonenumber
+                </GridColumn>
+
+                <GridColumn TItem="Customer" HeaderText="Geburtsdatum" PropertyName="Birthdate" SortKeySelector="x => x.Birthdate">
+                    @context.Birthdate.ToString("dd.MM.yyyy")
+                </GridColumn>
+
+                <GridColumn TItem="Customer" HeaderText="Aktionen" Filterable="false" Sortable="false">
+                    <Button class="icon-btn tabel-del-btn" @onclick="() => DeleteCustomer(SelectedCustomer?.Id)">
+                        <img src="./delete_icon.svg" alt="Löschen" />
+                    </Button>
+                </GridColumn>
+            </GridColumns>
+        </Grid>
+    </div>
+</div>
+<div id="splitter"></div>
+<div class="detail-group-div">
+    <div class="kunden-details-group">
+        <div class="detail-container">
+            <label for="name">Name</label>
+            <select id="name" name="name" aria-placeholder="Titel" class="firma-select" @bind="CurrentCustomer.Title">
+                <option value="">– Titel wählen –</option>
+                <option value="Herr">Herr</option>
+                <option value="Frau">Frau</option>
+            </select>
+            <input type="text" @bind="CurrentCustomer.Contact.Firstname" placeholder="Vorname" class="name-input" />
+            <input type="text" @bind="CurrentCustomer.Contact.Surname" placeholder="Nachname" class="name-input" />
+        </div>
+        <div>
+            <label for="adresse">Adresse</label>
+            <input type="text" @bind="CurrentCustomer.Address.Street" placeholder="Straße" class="adresse-input" />
+            <input type="text" @bind="PlzOrt" placeholder="PLZ und Ort" class="adresse-input" />
+        </div>
+        <div>
+            <label for="land">Land</label>
+            <InputSelectCountry Items="countries"
+                    class="land-select"
+                    @bind-Value="CurrentCustomer.Address.Country" />
+            <img src="@SelectedFlagPath" class="flag-icon" />
+            <label>Geb</label>
+            <input type="date" @bind="CurrentCustomer.Birthdate" class="geb-input" />
+            <input type="number" value="@CurrentCustomer.Age" disabled class="alter-input" />
+        </div>
+        <div>
+            <label for="kontakt">Kontakt</label>
+            <input type="email" @bind="CurrentCustomer.Mail" placeholder="E-Mail" class="kontakt-input" />
+            <input type="tel" @bind="CurrentCustomer.Contact.Phonenumber" placeholder="Telefon" class="kontakt-input" />
+        </div>
+        <div>
+            <label for="notfall" class="notfall-label">NOTFALL</label>
+            <input type="email" @bind="NotfallContact" placeholder="Notfallkontakt" class="kontakt-input" />
+            <input type="tel" @bind="CurrentCustomer.NotfallContact.Phonenumber" placeholder="Notfalltelefon" class="kontakt-input" />
+
+        </div>
+        <div>
+            <label>UID</label>
+            <input type="text" @bind="CurrentCustomer.UID" placeholder="UID" class="uid-input" />
+            <label>Sponsor</label>
+            <input type="text" @bind="CurrentCustomer.Sponsor" placeholder="Sponsor" class="sponsor-input" />
+        </div>
+        <div class="checkbox-wrapper">
+            <label>TC5K</label>
+            <input type="checkbox"
+                   checked="@Tc5kParticipates"
+                   @onchange="(e) => ToggleParticipatesTc5k((bool)e.Value!)" />
+
+            <label>Teamchef</label>
+            <input type="checkbox"
+                   checked="@Tc5kIsTeamChef"
+                   @onchange="(e) => ToggleTeamchefTc5k((bool)e.Value!)"
+                   disabled="@(!Tc5kParticipates || Tc5kTeam == null)" />
+
+            <label>Team</label>
+            <input class="team-select"
+                   list="teams-tc5k"
+                   placeholder="Team suchen oder neu eingeben"
+                   value="@Tc5kTeamQuery"
+                   @oninput="(e) => OnTeamQueryChangedTc5k(e.Value?.ToString())"
+                   @onchange="(e) => OnTeamChosenOrTypedTc5k()" />
+
+            <datalist id="teams-tc5k">
+                @foreach (var t in Tc5kTeamSuggestions)
+                {
+                    <option value="@t.Name"></option>
+                }
+            </datalist>
+        </div>
+        <div class="checkbox-wrapper">
+            <label>END Cup</label>
+            <input type="checkbox"
+                   checked="@EndParticipates"
+                   @onchange="(e) => ToggleParticipatesEnd((bool)e.Value!)" />
+
+            <label>Teamchef</label>
+            <input type="checkbox"
+                   checked="@EndIsTeamChef"
+                   @onchange="(e) => ToggleTeamchefEnd((bool)e.Value!)"
+                   disabled="@(!EndParticipates || EndTeam == null)" />
+
+            <label>Team</label>
+            <input class="team-select"
+                   list="teams-end"
+                   placeholder="Team suchen oder neu eingeben"
+                   value="@EndTeamQuery"
+                   @oninput="(e) => OnTeamQueryChangedEnd(e.Value?.ToString())"
+                   @onchange="(e) => OnTeamChosenOrTypedEnd()" />
+
+            <datalist id="teams-end">
+                @foreach (var t in EndTeamSuggestions)
+                {
+                    <option value="@t.Name"></option>
+                }
+            </datalist>
+        </div>
+        <div>
+            <label>Guthaben</label>
+            <input type="number" @bind="CurrentCustomer.Guthaben" placeholder="Guthaben" />
+            <input type="date" @bind="CurrentCustomer.LastGuthabenAdd" />
+            <input type="number" @bind="CurrentCustomer.LastGuthabenAddNumber" placeholder="Betrag" />
+            <input type="text" @bind="CurrentCustomer.GuthabenComment" placeholder="Bemerkung" />
+        </div>
+        <div class="extra-wrapper">
+            <label>Preisgeld</label>
+            <input type="number" @bind="CurrentCustomer.Preisgeld" placeholder="Preisgeld" />
+            <label>Gratisfahrer</label>
+            <input type="number" @bind="CurrentCustomer.Gratisfahrer" placeholder="Gratisfahrer" />
+            <label>Schurke</label>
+            <input type="number" @bind="CurrentCustomer.Schurke" placeholder="Schurke" />
+            <label>Verzicht OK</label>
+            <input type="checkbox" @bind="CurrentCustomer.VerzichtOk" />
+        </div>
+        <div>
+            <label>Gruppe</label>
+            <InputSelectGruppe @bind-Value="CurrentCustomer.Gruppe"
+                         Items="gruppen"
+                         TextSelector="g => g.Name"
+                         class="gruppe-select" />
+
+        </div>
+    </div>
+    <div class="bike-race-group">
+        <div>
+            <div class="bike-wrapper">
+                <label>Bike</label>
+                <select @bind="CurrentCustomer.Bike.Brand">
+                    <option value="">– Marke wählen –</option>
+                    @foreach (var brand in brands)
+                    {
+                        <option value="@brand">@brand</option>
+                    }
+                </select>
+                <label>Type</label>
+                <input type="text" @bind="CurrentCustomer.Bike.Type" placeholder="Type" />
+                <label>Klasse</label>
+                <input type="text" @bind="CurrentCustomer.Bike.Ccm" placeholder="Klasse" />
+                <label>Kunde seit</label>
+                <input type="date" @bind="CurrentCustomer.Validfrom" />
+             </div>
+             <div class="bike-wrapper2">
+                <label>Baujahr</label>
+                <input type="number" @bind="CurrentCustomer.Bike.Year" placeholder="Baujahr" />
+                <label>Tran</label>
+                <input type="text" @bind="CurrentCustomer.Transponder.Bezeichung" placeholder="Tran" />
+                <label>Tran ID</label>
+                <input type="text" @bind="CurrentCustomer.Transponder.Number" placeholder="Tran ID" disabled class="tran-id" />
+                <label class="letzte-buch-label">Letzte Buchung</label>
+                <input type="date" @bind="CurrentCustomer.letzteBuchung" placeholder="Letzte Buchung" />
+             </div>
+             <div class="bike-wrapper3">
+                <label>Start #</label>
+                <input type="text" @bind="CurrentCustomer.Startnumber" placeholder="Start #" />
+                <label class="s8s-label">S8S</label>
+                <input type="text" @bind="CurrentCustomer.S8S" placeholder="S8S" />
+                <label>Speeddays</label>
+                <input type="text" @bind="CurrentCustomer.Speeddays" placeholder="Speeddays" />
+                <label class="letzte-einkauf-label">Letzter Einkauf</label>
+                <input type="date" @bind="CurrentCustomer.letzterEinkauf" placeholder="Letzter Einkauf" />
+             </div>
+        </div>
+        <div class="j-l-container">
+            <div>
+                <p>Jahreswertung:</p>
+                <div class="cup-container">
+                    <div class="cup-field">
+                        @foreach (var vm in cups)
+                        {
+                            <div class="checkbox-wrapper">
+                                <label>@vm.Name</label>
+                                <input type="checkbox"/>
+                            </div>
+                        }
+                        </div>
+                    </div>
+            </div>
+            <div class="laptime-container">
+                @foreach (var t in Tracks)
+                {
+                    <div class="laptime-field">
+                        <label>@t.Code</label>
+                        <InputText @bind-Value="t.Value"
+                                   placeholder="@($"{t.Code} (mm:ss,ss)")"
+                                   pattern="@Pattern" />
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="btn-column">
+            <button class="filter-btn">Speichern</button>
+            <button class="filter-btn">Mail senden</button>
+            <button class="filter-btn">Mail archiv</button>
+            <button class="filter-btn">Kundenmails</button>
+        </div>
+    </div>   
+</div>

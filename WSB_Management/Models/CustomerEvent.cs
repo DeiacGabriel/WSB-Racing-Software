@@ -3,25 +3,12 @@ using System.Collections.Generic;
 
 namespace WSB_Management.Models;
 
-public class CustomerEvent
+public class CostumerEvent
 {
     public long Id { get; set; }
-
-    public long Customerid { get; set; }
-
-    public long Eventid { get; set; }
-
-    public long Bikeid { get; set; }
-
-    public long Transponderid { get; set; }
-
-    public TimeSpan? Laptime { get; set; }
-
-    public virtual Bike Bike { get; set; } = null!;
-
-    public virtual Customer Customer { get; set; } = null!;
-
-    public virtual Event Event { get; set; } = null!;
-
-    public virtual Transponder Transponder { get; set; } = null!;
+    public TimeSpan Laptime { get; set; }
+    public Bike Bike { get; set; }
+    public Customer Customer { get; set; }
+    public Event Event { get; set; }
+    public Transponder Transponder { get; set; }
 }

@@ -1,0 +1,135 @@
+﻿@using WSB_Management.Components.Customs
+@using WSB_Management.Components.Layout
+@using System.ComponentModel.DataAnnotations
+@using WSB_Management.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+@page "/management/countries"
+@rendermode InteractiveServer
+@layout MainLayout
+
+<PageTitle>WSB-Sport - Countries</PageTitle>
+<HeadContent>
+    <link rel="stylesheet" href="@Assets["country.css"]" />
+</HeadContent>
+
+<div class="group-div">
+    <div class="country-liste-header">
+        <p class="country-titel">Liste aller Länder</p>
+    </div>
+
+    <div class="grid-scroll-wrapper">
+        <Grid TItem="Country"
+              @ref="grid"
+              Class="table table-hover table-bordered table-striped"
+              AllowSorting="true"
+              AllowFiltering="true"
+              AllowSelection="true"
+              Responsive="true"
+              AllowPaging="false"
+              DataProvider="CountryDataProvider"
+              RowKeySelector="c => c.Id"
+              SelectionMode="GridSelectionMode.Single"
+              Style="height:20rem;"
+              SelectedItemsChanged="OnSelectedItemsChanged">
+
+            <GridColumns Style="height:35rem;">
+                <GridColumn TItem="Country" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id">
+                    @context.Id
+                </GridColumn>
+
+                <GridColumn TItem="Country" HeaderText="Kurz" PropertyName="Shorttxt" SortKeySelector="x => x.Shorttxt">
+                    @context.Shorttxt
+                </GridColumn>
+
+                <GridColumn TItem="Country" HeaderText="Lang" PropertyName="Longtxt" SortKeySelector="x => x.Longtxt">
+                    @context.Longtxt
+                </GridColumn>
+
+                <GridColumn TItem="Country" HeaderText="Flagge" PropertyName="FlagPath" Filterable="false" Sortable="false">
+                    <img src="@context.FlagPath" alt="@context.Longtxt" class="flag-table" />
+                </GridColumn>
+
+                <GridColumn TItem="Country" HeaderText="Aktionen" Filterable="false" Sortable="false">
+                    <button class="icon-btn tabel-del-btn"
+                            @onclick="() => DeleteCountryAsync(context.Id)"
+                            @onclick:stopPropagation="true"
+                            title="Löschen">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                </GridColumn>
+            </GridColumns>
+        </Grid>
+    </div>
+</div>
+
+<div id="splitter"></div>
+
+<div class="card details-card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="fw-semibold">Land bearbeiten</span>
+        <Button Color="ButtonColor.Danger" Size="ButtonSize.Small" @onclick="SaveCountry">Speichern</Button>
+    </div>
+
+    <div class="card-body" style="padding: 4px;">
+        <div class="row g-3 align-items-start">
+            <div class="col-md-4">
+                <label class="form-label">Kurzname</label>
+                <input class="form-control" type="text" @bind="CurrentCountry.Shorttxt" placeholder="Shorttxt" />
+            </div>
+
+            <div class="col-md-8">
+                <label class="form-label">Langname</label>
+                <input class="form-control" type="text" @bind="CurrentCountry.Longtxt" placeholder="Longtxt" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Ordner</label>
+                <input class="form-control" type="text" @bind="UploadSubFolder" placeholder="z. B. flags" readonly/>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Dateiname (ohne .png)</label>
+                <input class="form-control" type="text" @bind="FileNameBase" placeholder="leer = Shorttxt" />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label mb-1">Flagge hochladen</label>
+                <div class="drop-zone @(IsDragOver ? "drop-zone--over" : "")"
+                     @ondragover="e => IsDragOver = true"
+                     @ondragleave="e => IsDragOver = false"
+                     @ondrop="e => IsDragOver = false">
+                    <InputFile class="drop-input" OnChange="OnPngSelected" accept="image/png" />
+                    <div class="drop-hint text-center">
+                        <strong>PNG hierher ziehen</strong> oder klicken, um auszuwählen.
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <label class="form-label">FlagPath</label>
+                <input class="form-control font-monospace" type="text"
+                       @bind="CurrentCountry.FlagPath" placeholder="/flags/flagge-land.png" readonly />
+            </div>
+
+            <div class="col-md-4" style="margin:0;">
+                <label class="form-label">Vorschau</label>
+                <div class="flag-preview">
+                    @if (!string.IsNullOrWhiteSpace(SelectedFlagPath))
+                    {
+                        <img src="@SelectedFlagPath" alt="Flagge" />
+                    }
+                    else
+                    {
+                        <span class="text-muted">Keine Vorschau verfügbar</span>
+                    }
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <div class="col-12">
+                    <small class="text-muted" style="margin:0;">@Message</small>
+                </div>
+            }
+        </div>
+    </div>
+</div>

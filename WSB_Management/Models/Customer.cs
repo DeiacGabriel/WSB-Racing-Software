@@ -7,13 +7,23 @@ namespace WSB_Management.Models;
 public class Customer
 {
     public long Id { get; set; }
-
-    public string? Title { get; set; }
-
-    public string Firstname { get; set; } = null!;
-
-    public string Surname { get; set; } = null!;
-
+    private string _title;
+    public string Title
+    {
+        get => _title;
+        set
+        {
+            _title = value;
+            if (value == "Herr")
+                Sex = "M";
+            else if (value == "Frau")
+                Sex = "F";
+            else
+                Sex = string.Empty;
+        }
+    }
+    public string Sex { get; private set; }
+    public Contact Contact { get; set; }
     public DateTime Birthdate { get; set; }
     public int Age
     {
@@ -21,30 +31,42 @@ public class Customer
         {
             var today = DateTime.Today;
             var age = today.Year - Birthdate.Year;
-            if (Birthdate > today.AddYears(-age)) age--;
+            if (Birthdate.Date > today.AddYears(-age))
+                age--;
+
             return age;
         }
     }
-
-    public string? Sex { get; set; }
-
-    public string? Mail { get; set; }
-
-    public string? Phonenumber { get; set; }
-
-    public bool? Newsletter { get; set; }
-
-    public DateTime? Validfrom { get; set; }
-
-    public string? Startnumber { get; set; }
-
-    public virtual ObservableCollection<Address> Addresses { get; set; }
-
-    public virtual ObservableCollection<Contact> Contacts { get; set; }
-
-    public virtual ObservableCollection<CustomerBike> CustomerBikes { get; set; }
-
-    public virtual ObservableCollection<CustomerCup> CustomerCups { get; set; }
-
-    public virtual ObservableCollection<CustomerEvent> CustomerEvents { get; set; }
+    public string Mail { get; set; }
+    public bool Newsletter { get; set; }
+    public DateTime Validfrom { get; set; }
+    public string Startnumber { get; set; }
+    public Address Address { get; set; }
+    public Contact NotfallContact { get; set; }
+    public string Sponsor { get; set; }
+    public string UID { get; set; }
+    public double Guthaben { get; set; }
+    public DateTime LastGuthabenAdd { get; set; }
+    public double LastGuthabenAddNumber { get; set; }
+    public string GuthabenComment { get; set; }
+    public double Preisgeld { get; set; }
+    public double Gratisfahrer { get; set; }
+    public double Schurke { get; set; }
+    public bool VerzichtOk { get; set; }
+    public Gruppe Gruppe { get; set; }
+    public DateTime letzteBuchung { get; set; }
+    public DateTime letzterEinkauf { get; set; }
+    public Bike Bike { get; set; }
+    public Transponder Transponder { get; set; }
+    public string S8S { get; set; }
+    public string Speeddays { get; set; }
+    public Customer()
+    {
+        Gruppe = new Gruppe();
+        Bike = new Bike();
+        Contact = new Contact();
+        Address = new Address();
+        NotfallContact = new Contact();
+        Transponder = new Transponder();
+    }
 }
