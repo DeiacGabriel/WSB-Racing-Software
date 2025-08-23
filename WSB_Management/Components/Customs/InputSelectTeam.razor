@@ -1,0 +1,108 @@
+﻿@using System.Globalization
+@using System.Diagnostics.CodeAnalysis
+@using WSB_Management.Models
+@inherits InputBase<Team?>
+
+<input type="text" 
+       class="@CssClass"
+       @attributes="AdditionalAttributes"
+       list="@DataListId"
+       placeholder="Team wählen oder neu eingeben"
+       value="@CurrentValueAsString"
+       @oninput="OnInput"
+       @onchange="OnChange" />
+
+<datalist id="@DataListId">
+    @if (Items != null)
+    {
+        foreach (var team in Items.Where(t => !string.IsNullOrWhiteSpace(t.Name)))
+        {
+            <option value="@team.Name">@BuildText(team)</option>
+        }
+    }
+</datalist>
+
+@code {
+    [Parameter] public IEnumerable<Team>? Items { get; set; }
+    [Parameter] public Func<Team, string>? TextSelector { get; set; }
+    
+    private string DataListId = $"teams-{Guid.NewGuid():N}";
+    private string? _inputValue;
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        _inputValue = e.Value?.ToString();
+        // Sofortiges Feedback für Live-Suche
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        _inputValue = e.Value?.ToString();
+        UpdateCurrentValue();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateCurrentValue()
+    {
+        var inputText = _inputValue?.Trim();
+        
+        if (string.IsNullOrWhiteSpace(inputText))
+        {
+            CurrentValue = null;
+            return;
+        }
+
+        // Zuerst nach existierendem Team suchen
+        var existingTeam = Items?.FirstOrDefault(t => 
+            !string.IsNullOrWhiteSpace(t.Name) &&
+            t.Name.Equals(inputText, StringComparison.OrdinalIgnoreCase));
+
+        if (existingTeam != null)
+        {
+            CurrentValue = existingTeam;
+        }
+        else
+        {
+            // Neues Team erstellen (wird später in der Datenbank erstellt)
+            CurrentValue = new Team { Id = 0, Name = inputText, Members = new List<Customer>() };
+        }
+    }
+
+    protected override bool TryParseValueFromString(string? value, [MaybeNullWhen(false)] out Team? result, [NotNullWhen(false)] out string validationErrorMessage)
+    {
+        result = null;
+        validationErrorMessage = null!;
+
+        if (string.IsNullOrWhiteSpace(value))
+            return true; // -> null
+
+        var trimmedValue = value.Trim();
+
+        // Zuerst nach existierendem Team suchen
+        result = Items?.FirstOrDefault(t => 
+            !string.IsNullOrWhiteSpace(t.Name) &&
+            t.Name.Equals(trimmedValue, StringComparison.OrdinalIgnoreCase));
+
+        if (result == null)
+        {
+            // Neues Team erstellen
+            result = new Team { Id = 0, Name = trimmedValue, Members = new List<Customer>() };
+        }
+
+        return true;
+    }
+
+    protected override string? FormatValueAsString(Team? value)
+        => value?.Name;
+
+    private string BuildText(Team t)
+        => TextSelector?.Invoke(t) ?? t.Name;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (CurrentValue != null)
+            _inputValue = CurrentValue.Name;
+    }
+}

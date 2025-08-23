@@ -13,7 +13,7 @@ input[type="checkbox"] {
   margin-right: 5rem;
   transform: scale(1.25);
 }
-button{
+button {
     height: 35px;
     color: white;
     background-color: #C72E29;
@@ -21,10 +21,11 @@ button{
     border: black 2px solid;
     border-radius: 20px;
 }
-button:hover{
-    color: #C72E29;
-    background-color: white;
-}
+
+    button:hover {
+        color: #C72E29;
+        background-color: white;
+    }
 img{
     width: 12px;
 }
@@ -41,18 +42,17 @@ p {
     flex-direction: column;
     gap: 0.5rem;
     margin: 0;
-    height: 46rem;
+    height: 43rem;
 }
 
-/* Transponder Liste Header */
-.transponder-liste-header {
+.event-liste-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     margin: 0 1rem;
 }
-.transponder-titel {
+.event-titel {
     font-size: 1.5rem;
     font-weight: bold;
     height: 25px;
@@ -61,7 +61,7 @@ p {
 
 /* Tabelle */
 .grid-scroll-wrapper {
-    max-height: 45rem;
+    max-height: 40rem;
     overflow: auto;
     border: 1px solid #e2e2e2;
     border-radius: .5rem;
@@ -74,10 +74,6 @@ p {
         z-index: 2;
     }
 
-.table-hover tbody tr:hover {
-    background-color: #f8fbff;
-}
-
 
 .icon-btn {
   background: none;
@@ -87,17 +83,19 @@ p {
   margin-right: 6px;
 }
 
-.icon-btn img {
-  vertical-align: top;
-  width: 16px;
-  height: 16px;
-  filter: brightness(0) saturate(100%) invert(25%) sepia(83%) saturate(3487%) hue-rotate(343deg) brightness(94%) contrast(101%);
-}
 .tabel-edit-btn, .tabel-del-btn {
     background-color: transparent;
     color: #C72E29;
     border: none;
     cursor: pointer;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    margin-right: 6px;
 }
 
 /* Splitter */
@@ -127,4 +125,18 @@ p {
 /* Inputs auf Bootstrap-Basis hübscher runden */
 .form-control {
     border-radius: .6rem;
+}
+
+/* Event Grid Container Styling */
+.event-grid-container {
+    transition: all 0.2s ease;
+}
+
+/* Event-spezifische Styles */
+.event-liste-header .event-titel {
+    font-size: 1.5rem !important;
+    font-weight: bold !important;
+    height: 25px;
+    text-align: center;
+    color: #333 !important;
 }

@@ -40,11 +40,11 @@
                 </GridColumn>
 
                 <GridColumn TItem="Customer" HeaderText="Nachname" PropertyName="Surname" SortKeySelector="x => x.Contact.Surname">
-                    context.Contact.Surname
+                    @context.Contact.Surname
                 </GridColumn>
 
                 <GridColumn TItem="Customer" HeaderText="Vorname" PropertyName="Firstname" SortKeySelector="x => x.Contact.Firstname">
-                    context.Contact.Firstname
+                    @context.Contact.Firstname
                 </GridColumn>
 
                 <GridColumn TItem="Customer" HeaderText="Email" PropertyName="Mail" SortKeySelector="x => x.Mail">
@@ -60,9 +60,12 @@
                 </GridColumn>
 
                 <GridColumn TItem="Customer" HeaderText="Aktionen" Filterable="false" Sortable="false">
-                    <Button class="icon-btn tabel-del-btn" @onclick="() => DeleteCustomer(SelectedCustomer?.Id)">
-                        <img src="./delete_icon.svg" alt="Löschen" />
-                    </Button>
+                    <button class="icon-btn tabel-del-btn"
+                            @onclick="() => DeleteCustomer(context.Id)"
+                            @onclick:stopPropagation="true"
+                            title="Löschen">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
                 </GridColumn>
             </GridColumns>
         </Grid>
@@ -126,19 +129,10 @@
                    disabled="@(!Tc5kParticipates || Tc5kTeam == null)" />
 
             <label>Team</label>
-            <input class="team-select"
-                   list="teams-tc5k"
-                   placeholder="Team suchen oder neu eingeben"
-                   value="@Tc5kTeamQuery"
-                   @oninput="(e) => OnTeamQueryChangedTc5k(e.Value?.ToString())"
-                   @onchange="(e) => OnTeamChosenOrTypedTc5k()" />
-
-            <datalist id="teams-tc5k">
-                @foreach (var t in Tc5kTeamSuggestions)
-                {
-                    <option value="@t.Name"></option>
-                }
-            </datalist>
+            <InputSelectTeam @bind-Value="Tc5kTeam"
+                             Items="AllTeams"
+                             class="team-select"
+                             disabled="@(!Tc5kParticipates)" />
         </div>
         <div class="checkbox-wrapper">
             <label>END Cup</label>
@@ -153,23 +147,14 @@
                    disabled="@(!EndParticipates || EndTeam == null)" />
 
             <label>Team</label>
-            <input class="team-select"
-                   list="teams-end"
-                   placeholder="Team suchen oder neu eingeben"
-                   value="@EndTeamQuery"
-                   @oninput="(e) => OnTeamQueryChangedEnd(e.Value?.ToString())"
-                   @onchange="(e) => OnTeamChosenOrTypedEnd()" />
-
-            <datalist id="teams-end">
-                @foreach (var t in EndTeamSuggestions)
-                {
-                    <option value="@t.Name"></option>
-                }
-            </datalist>
+            <InputSelectTeam @bind-Value="EndTeam"
+                             Items="AllTeams"
+                             class="team-select"
+                             disabled="@(!EndParticipates)" />
         </div>
         <div>
             <label>Guthaben</label>
-            <input type="number" @bind="CurrentCustomer.Guthaben" placeholder="Guthaben" />
+            <input type="number" @bind="CurrentCustomer.Guthaben" placeholder="Guthaben" style="width:5rem;"/>
             <input type="date" @bind="CurrentCustomer.LastGuthabenAdd" />
             <input type="number" @bind="CurrentCustomer.LastGuthabenAddNumber" placeholder="Betrag" />
             <input type="text" @bind="CurrentCustomer.GuthabenComment" placeholder="Bemerkung" />
@@ -190,6 +175,11 @@
                          Items="gruppen"
                          TextSelector="g => g.Name"
                          class="gruppe-select" />
+            
+            <label>Beste Zeit</label>
+            <input type="text" @bind="BestTimeInput" placeholder="z.B. 2:15,5 oder 2:15,50" 
+                   pattern="^([0-5]?[0-9]):([0-5][0-9]),([0-9]{1,2})$" 
+                   title="Format: mm:ss,h oder mm:ss,hh (z.B. 2:15,5 oder 2:15,50)" />
         </div>
     </div>
     <div class="bike-race-group">
@@ -259,7 +249,7 @@
             </div>
         </div>
         <div class="btn-column">
-            <button class="filter-btn">Speichern</button>
+            <button class="filter-btn" @onclick="SaveCustomerAsync">Speichern</button>
             <button class="filter-btn">Mail senden</button>
             <button class="filter-btn">Mail archiv</button>
             <button class="filter-btn">Kundenmails</button>

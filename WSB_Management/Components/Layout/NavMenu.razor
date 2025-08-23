@@ -30,7 +30,7 @@
 
     <!-- Dropdown Stammdaten -->
     <Dropdown Class="nav-item dropdown">
-        <DropdownToggleButton Class="dropdown-toggle">
+        <DropdownToggleButton Class="@($"dropdown-toggle {(IsMgmtActive ? "active" : "")}")">
             <span class="material-symbols-outlined">list</span>
             <span>Stammdaten</span>
         </DropdownToggleButton>
@@ -59,7 +59,7 @@
 
     private readonly MgmtItem[] MgmtOptions = new[] {
         new MgmtItem("Events",      "/management/events"),
-        new MgmtItem("Bikes",       "/management/bikes"),
+        new MgmtItem("Gruppen",      "/management/groups"),
         new MgmtItem("Transponder", "/management/transponder"),
         new MgmtItem("Länder",      "/management/countries"),
         new MgmtItem("Marken",      "/management/brands"),

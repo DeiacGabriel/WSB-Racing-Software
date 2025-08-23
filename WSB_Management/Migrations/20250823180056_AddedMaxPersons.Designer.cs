@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WSB_Management.Data;
 
@@ -10,9 +11,11 @@ using WSB_Management.Data;
 namespace WSB_Management.Migrations
 {
     [DbContext(typeof(WSBRacingDbContext))]
-    partial class WSBRacingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250823180056_AddedMaxPersons")]
+    partial class AddedMaxPersons
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

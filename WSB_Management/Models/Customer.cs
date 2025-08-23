@@ -7,7 +7,7 @@ namespace WSB_Management.Models;
 public class Customer
 {
     public long Id { get; set; }
-    private string _title;
+    private string _title = string.Empty;
     public string Title
     {
         get => _title;
@@ -22,7 +22,7 @@ public class Customer
                 Sex = string.Empty;
         }
     }
-    public string Sex { get; private set; }
+    public string Sex { get; private set; } = string.Empty;
     public Contact Contact { get; set; }
     public DateTime Birthdate { get; set; }
     public int Age
@@ -58,6 +58,7 @@ public class Customer
     public DateTime letzterEinkauf { get; set; }
     public Bike Bike { get; set; }
     public Transponder Transponder { get; set; }
+    public TimeSpan? BestTime { get; set; } // Beste Zeit des Kunden für Gruppeneinteilung
     public string S8S { get; set; }
     public string Speeddays { get; set; }
     public Customer()
@@ -68,5 +69,13 @@ public class Customer
         Address = new Address();
         NotfallContact = new Contact();
         Transponder = new Transponder();
+        GuthabenComment = string.Empty;
+        Title = string.Empty;
+        Mail = string.Empty;
+        Startnumber = string.Empty;
+        Sponsor = string.Empty;
+        UID = string.Empty;
+        S8S = string.Empty;
+        Speeddays = string.Empty;
     }
 }

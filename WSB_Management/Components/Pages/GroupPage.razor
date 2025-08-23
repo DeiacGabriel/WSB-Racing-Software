@@ -1,0 +1,118 @@
+﻿@using WSB_Management.Components.Customs
+@using WSB_Management.Components.Layout
+@using System.ComponentModel.DataAnnotations
+@using WSB_Management.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+@page "/management/groups"
+@rendermode InteractiveServer
+@layout MainLayout
+
+<PageTitle>WSB-Sport - Gruppen</PageTitle>
+<HeadContent>
+    <link rel="stylesheet" href="@Assets["groups.css"]" />
+</HeadContent>
+
+<div class="gruppe-div">
+    <div class="gruppe-liste-header">
+        <p class="gruppe-titel">Liste aller Gruppen</p>
+    </div>
+
+    <div class="grid-scroll-wrapper">
+        <Grid TItem="Gruppe"
+              @ref="grid"
+              Class="table table-hover table-bordered table-striped"
+              AllowSorting="true"
+              AllowFiltering="true"
+              AllowSelection="true"
+              Responsive="true"
+              AllowPaging="false"
+              DataProvider="@GruppeDataProvider"
+              RowKeySelector="g => g.Id"
+              SelectionMode="GridSelectionMode.Single"
+              Style="height:43rem;"
+              SelectedItemsChanged="OnSelectedItemsChanged">
+
+            <GridColumns>
+                <GridColumn TItem="Gruppe" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id"
+                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                    @context.Id
+                </GridColumn>
+
+                <GridColumn TItem="Gruppe" HeaderText="Name" PropertyName="Name" SortKeySelector="x => x.Name"
+                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                    @context.Name
+                </GridColumn>
+
+                <GridColumn TItem="Gruppe" HeaderText="Max. Zeit" PropertyName="MaxTimelap" SortKeySelector="x => x.MaxTimelap"
+                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                    @if (context.MaxTimelap.HasValue)
+                    {
+                        @context.MaxTimelap.Value.ToString(@"mm\:ss\.ff")
+                    }
+                    else
+                    {
+                        <span class="text-muted">-</span>
+                    }
+                </GridColumn>
+
+                <GridColumn TItem="Gruppe" HeaderText="Aktionen" Filterable="false" Sortable="false"
+                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                    <button class="icon-btn tabel-del-btn"
+                            @onclick="() => DeleteGruppeAsync(context.Id)"
+                            @onclick:stopPropagation="true"
+                            title="Löschen">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                </GridColumn>
+            </GridColumns>
+        </Grid>
+    </div>
+</div>
+
+<div id="splitter"></div>
+
+<div class="card details-card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="fw-semibold">Gruppe bearbeiten</span>
+        <div class="button-group">
+            <Button Color="ButtonColor.Danger" Style="width:13rem;" @onclick="SaveGruppe">Speichern</Button>
+            <Button Color="ButtonColor.Warning" Style="width:13rem;" @onclick="AutoAssignCustomersToGroups">
+                Automatisch einteilen
+            </Button>
+        </div>
+    </div>
+
+    <div class="card-body" style="padding: 4px;">
+        <div class="row g-3 align-items-start">
+            <div class="col-md-6">
+                <label class="form-label">Gruppenname</label>
+                <input class="form-control" type="text" @bind="CurrentGruppe.Name" placeholder="Gruppenname eingeben" />
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">Max. Zeit</label>
+                <TimeInput TValue="TimeOnly?"
+                           Value="MaxTime"
+                           ValueExpression="() => MaxTime"
+                           ValueChanged="(value) => MaxTime = value"
+                           Placeholder="z.B. 02:15"
+                           Format="mm:ss" />
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <div class="col-12">
+                    <small class="text-muted" style="margin:0;">@Message</small>
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(AutoAssignMessage))
+            {
+                <div class="col-12">
+                    <small class="text-info" style="margin:0;">@AutoAssignMessage</small>
+                </div>
+            }
+        </div>
+    </div>
+</div>

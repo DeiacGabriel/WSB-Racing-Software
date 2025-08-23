@@ -1,0 +1,130 @@
+﻿@using WSB_Management.Components.Customs
+@using WSB_Management.Components.Layout
+@using System.ComponentModel.DataAnnotations
+@using WSB_Management.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using BlazorBootstrap
+@using Microsoft.EntityFrameworkCore
+@using WSB_Management.Data
+
+@page "/management/events"
+@rendermode InteractiveServer
+@layout MainLayout
+@implements IDisposable
+@implements IAsyncDisposable
+
+<PageTitle>WSB-Sport - Events</PageTitle>
+<HeadContent>
+    <link rel="stylesheet" href="@Assets["event.css"]" />
+</HeadContent>
+
+<div class="group-div">
+    <div class="event-liste-header">
+        <p class="event-titel">Liste aller Events</p>
+    </div>
+
+    <div class="grid-scroll-wrapper">
+        <Grid TItem="Event"
+              @ref="grid"
+              Class="table table-hover table-bordered table-striped"
+              GridContainerClass="event-grid-container"
+              AllowSorting="true"
+              AllowFiltering="true"
+              AllowSelection="true"
+              Responsive="true"
+              AllowPaging="false"
+              DataProvider="@EventDataProvider"
+              RowKeySelector="e => e.Id"
+              SelectionMode="GridSelectionMode.Single"
+              Style="height:43rem;"
+              SelectedItemsChanged="OnSelectedItemsChanged">
+
+            <GridColumns>
+                <GridColumn TItem="Event" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id"
+                            HeaderStyle="height:2rem; width:6rem;" CellStyle="height:2rem; width:6rem;">
+                    @context.Id
+                </GridColumn>
+
+                <GridColumn TItem="Event" HeaderText="Name" PropertyName="Name" SortKeySelector="x => x.Name"
+                            HeaderStyle="height:2rem; width:6rem;" CellStyle="height:2rem; width:6rem;">
+                    @context.Name
+                </GridColumn>
+
+                <GridColumn TItem="Event" HeaderText="Gültig von" PropertyName="Validfrom" SortKeySelector="x => x.Validfrom"
+                            HeaderStyle="height:2rem; width:8rem;" CellStyle="height:2rem; width:8rem;">
+                    @context.Validfrom.ToString("dd.MM.yyyy")
+                </GridColumn>
+
+                <GridColumn TItem="Event" HeaderText="Gültig bis" PropertyName="Validuntil" SortKeySelector="x => x.Validuntil"
+                            HeaderStyle="height:2rem; width:8rem;" CellStyle="height:2rem; width:8rem;">
+                    @context.Validuntil.ToString("dd.MM.yyyy")
+                </GridColumn>
+
+                <GridColumn TItem="Event" HeaderText="Max Personen" PropertyName="maxPersons" SortKeySelector="x => x.maxPersons"
+                            HeaderStyle="height:2rem; width:9rem;" CellStyle="height:2rem; width:9rem;">
+                    @context.maxPersons
+                </GridColumn>
+
+                <GridColumn TItem="Event" HeaderText="MwSt %" PropertyName="Vat" SortKeySelector="x => x.Vat"
+                            HeaderStyle="height:2rem; width:6rem;" CellStyle="height:2rem; width:6rem;">
+                    @context.Vat.ToString("F2")%
+                </GridColumn>
+
+                <GridColumn TItem="Event" HeaderText="Aktionen" Filterable="false" Sortable="false"
+                            HeaderStyle="height:2rem; width:5rem;" CellStyle="height:2rem; width:5rem;">
+                    <button class="icon-btn tabel-del-btn" style="width:100%;"
+                            @onclick="() => DeleteEventAsync(context.Id)"
+                            @onclick:stopPropagation="true"
+                            title="Löschen">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                </GridColumn>
+            </GridColumns>
+        </Grid>
+    </div>
+</div>
+
+<div id="splitter"></div>
+
+<div class="card details-card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="fw-semibold">Event bearbeiten</span>
+        <Button Color="ButtonColor.Danger" Style="width:13rem;" @onclick="SaveEvent">Speichern</Button>
+    </div>
+
+    <div class="card-body" style="padding: 4px;">
+        <div class="row g-3 align-items-start">
+            <div class="col-md-6">
+                <label class="form-label">Eventname</label>
+                <input class="form-control" type="text" @bind="CurrentEvent.Name" placeholder="Eventname eingeben" />
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Gültig von</label>
+                <input class="form-control" type="date" @bind="CurrentEvent.Validfrom" />
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Gültig bis</label>
+                <input class="form-control" type="date" @bind="CurrentEvent.Validuntil" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Max. Personen</label>
+                <input class="form-control" type="number" @bind="CurrentEvent.maxPersons" placeholder="Max. Anzahl Personen" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">MwSt (%)</label>
+                <input class="form-control" type="number" step="0.01" @bind="CurrentEvent.Vat" placeholder="Mehrwertsteuersatz" />
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <div class="col-12">
+                    <small class="text-muted" style="margin:0;">@Message</small>
+                </div>
+            }
+        </div>
+    </div>
+</div>
