@@ -77,7 +77,6 @@ namespace WSB_Management.Components.Pages
         private string UploadSubFolder { get; set; } = "flags";
         private string? _previousFlagPath;
 
-        private string FileNameBase { get; set; } = "";
         private bool IsDragOver { get; set; }
         private string? Message { get; set; }
         private const long MaxFileSize = 20 * 1024 * 1024;
