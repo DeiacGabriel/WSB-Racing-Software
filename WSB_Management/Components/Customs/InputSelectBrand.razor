@@ -1,0 +1,48 @@
+﻿@using System.Globalization
+@using WSB_Management.Models
+@inherits InputBase<Brand?>
+
+<select class="@CssClass"
+        @attributes="AdditionalAttributes"
+        @bind="CurrentValueAsString">
+    <option value="">– Marke wählen –</option>
+    @if (Items != null)
+    {
+        foreach (var b in Items)
+        {
+            <option value="@b.Id">@BuildText(b)</option>
+        }
+    }
+</select>
+
+@code {
+    [Parameter] public IEnumerable<Brand>? Items { get; set; }
+    [Parameter] public Func<Brand, string>? TextSelector { get; set; }
+
+    protected override bool TryParseValueFromString(string? value, out Brand? result, out string? validationErrorMessage)
+    {
+        result = null;
+        validationErrorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(value))
+            return true; // -> null
+
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+        {
+            result = Items?.FirstOrDefault(x => x.Id == id);
+            if (result != null) return true;
+
+            validationErrorMessage = $"Unbekannte Brand-Id: {id}";
+            return false;
+        }
+
+        validationErrorMessage = "Ungültige Eingabe.";
+        return false;
+    }
+
+    protected override string? FormatValueAsString(Brand? value)
+        => value?.Id.ToString(CultureInfo.InvariantCulture);
+
+    private string BuildText(Brand b)
+        => TextSelector?.Invoke(b) ?? b.Name;
+}

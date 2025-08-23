@@ -1,0 +1,131 @@
+﻿/* Global Styles */
+body {
+    background-color: #f1f1f1;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    font-family: 'Roboto', sans-serif;
+    display: block;
+    flex-direction: row;
+    align-items: center;
+    margin: 0;
+}
+input[type="checkbox"] {
+  margin-right: 5rem;
+  transform: scale(1.25);
+}
+button{
+    height: 35px;
+    color: white;
+    background-color: #C72E29;
+    cursor: pointer;
+    border: black 2px solid;
+    border-radius: 20px;
+    width: 13rem;
+}
+button:hover{
+    color: #C72E29;
+    background-color: white;
+}
+img{
+    width: 12px;
+}
+div {
+    margin: 4px 0 2px 0;
+}
+p {
+    margin: 0;
+}
+.group-div {
+    background-color: white;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0;
+    height: 46rem;
+}
+
+/* Transponder Liste Header */
+.transponder-liste-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0 1rem;
+}
+.transponder-titel {
+    font-size: 1.5rem;
+    font-weight: bold;
+    height: 25px;
+    text-align: center;
+}
+
+/* Tabelle */
+.grid-scroll-wrapper {
+    max-height: 45rem;
+    overflow: auto;
+    border: 1px solid #e2e2e2;
+    border-radius: .5rem;
+}
+
+    .grid-scroll-wrapper thead th {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 2;
+    }
+
+.table-hover tbody tr:hover {
+    background-color: #f8fbff;
+}
+
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  margin-right: 6px;
+}
+
+.icon-btn img {
+  vertical-align: top;
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) saturate(100%) invert(25%) sepia(83%) saturate(3487%) hue-rotate(343deg) brightness(94%) contrast(101%);
+}
+.tabel-edit-btn, .tabel-del-btn {
+    background-color: transparent;
+    color: #C72E29;
+    border: none;
+    cursor: pointer;
+}
+
+/* Splitter */
+#splitter {
+    height: 5px;
+    margin: 0;
+    background-color: #D3D0D0;
+    border-radius: 12px;
+}
+/* Card & Layout */
+.details-card {
+    border-radius: .75rem;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+
+    .details-card .card-header {
+        background: #fff;
+        border-bottom: 1px solid #e9ecef;
+        padding: .0rem 1rem;
+    }
+
+    .details-card .card-body {
+        background: #fff;
+    }
+
+/* Inputs auf Bootstrap-Basis hübscher runden */
+.form-control {
+    border-radius: .6rem;
+}

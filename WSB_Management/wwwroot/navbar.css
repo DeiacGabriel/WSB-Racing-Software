@@ -41,7 +41,6 @@ button {
 
 .dropdown-toggle:hover {
     background-color: #f0f0f0;
-    color: white;
 }
 .dropdown-toggle {
     display: inline-flex;

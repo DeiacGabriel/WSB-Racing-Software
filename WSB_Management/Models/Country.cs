@@ -30,12 +30,15 @@ public class Country
     /// <summary>
     /// Setzt FlagPath auf Basis von Longtxt/Shorttxt.
     /// </summary>
-    public void UpdateFlagPath()
+    public void UpdateFlagPath(string fileNameBase = "")
     {
         const string folder = "flags";
         const string prefix = "flagge-";
-
-        var basis = string.IsNullOrWhiteSpace(Longtxt) ? Shorttxt.ToLower() : Longtxt.ToLower();
+        string basis;
+        if (!string.IsNullOrWhiteSpace(fileNameBase))
+            basis = fileNameBase;
+        else
+            basis = string.IsNullOrWhiteSpace(Longtxt) ? Shorttxt.ToLower() : Longtxt.ToLower();
         if (string.IsNullOrWhiteSpace(basis))
         {
             FlagPath = "";

@@ -5,7 +5,6 @@ using System.ComponentModel;
 using WSB_Management.Converter;
 
 namespace WSB_Management.Models;
-[TypeConverter(typeof(BrandTypeConverter))]
 public class Brand
 {
     public long Id { get; set; }

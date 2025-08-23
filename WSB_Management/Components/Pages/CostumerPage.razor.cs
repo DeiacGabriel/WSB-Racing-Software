@@ -1,27 +1,59 @@
 ﻿using BlazorBootstrap;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.EntityFrameworkCore;
-using NuGet.Packaging;
-using System.Collections.ObjectModel;
 using WSB_Management.Data;
 using WSB_Management.Models;
+
 namespace WSB_Management.Components.Pages
 {
-    public partial class CostumerPage
+    public partial class CostumerPage : IDisposable, IAsyncDisposable
     {
+        private bool _isDisposed;
+        private CancellationTokenSource? _cts = new();
+        
+        public void Dispose()
+        {
+            _isDisposed = true;
+            try { _cts?.Cancel(); } catch { }
+            _cts?.Dispose();
+            _cts = null;
+            GC.SuppressFinalize(this);
+        }
+        
+        public ValueTask DisposeAsync()
+        {
+            Dispose();
+            return ValueTask.CompletedTask;
+        }
+        
+        private void SafeStateHasChanged()
+        {
+            if (_isDisposed) return;
+            try 
+            { 
+                if (!_isDisposed)
+                    StateHasChanged();
+            } 
+            catch (ObjectDisposedException) { /* Component disposed */ }
+            catch (InvalidOperationException) { /* Renderer disposed */ }
+        }
+        
+        private Grid<Customer>? grid;
         private Customer? _selectedCustomer;
         public Customer? SelectedCustomer
         {
             get => _selectedCustomer;
             set
             {
-                if (_selectedCustomer != value && value != null)
+                if (_selectedCustomer != value && value is not null)
                 {
                     _selectedCustomer = value;
-                    StateHasChanged();
+                    SafeStateHasChanged();
                 }
             }
         }
+        
         private Customer _newCustomer = new Customer();
         public Customer NewCustomer
         {
@@ -31,14 +63,20 @@ namespace WSB_Management.Components.Pages
                 if (_newCustomer != value)
                 {
                     _newCustomer = value;
-                    StateHasChanged();
+                    SafeStateHasChanged();
                 }
             }
         }
         private Customer CurrentCustomer => SelectedCustomer ?? NewCustomer;
+        
+        // Cache für bessere Performance
+        private void InvalidateCustomersCache()
+        {
+            customers = new List<Customer>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
+        }
         private string PlzOrt
         {
-            get => $"{CurrentCustomer.Address.Zip} {CurrentCustomer.Address.City}".Trim();
+            get => $"{CurrentCustomer?.Address?.Zip ?? ""} {CurrentCustomer?.Address?.City ?? ""}".Trim();
             set
             {
                 EnsureAddress();
@@ -54,15 +92,18 @@ namespace WSB_Management.Components.Pages
                     CurrentCustomer.Address.Zip = "";
                     CurrentCustomer.Address.City = input;
                 }
-                StateHasChanged();
+                SafeStateHasChanged();
             }
         }
+        
         public List<Country> countries { get; set; } = new List<Country>();
+        public List<Transponder> transponders { get; set; } = new List<Transponder>();
         private string NotfallContact 
         {             
-            get => $"{CurrentCustomer.NotfallContact.Firstname} {CurrentCustomer.NotfallContact.Surname}".Trim();
+            get => $"{CurrentCustomer?.NotfallContact?.Firstname ?? ""} {CurrentCustomer?.NotfallContact?.Surname ?? ""}".Trim();
             set
             {
+                EnsureNotfallContact();
                 var input = (value ?? string.Empty).Trim();
                 var parts = input.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length > 0)
@@ -75,7 +116,7 @@ namespace WSB_Management.Components.Pages
                     CurrentCustomer.NotfallContact.Firstname = "";
                     CurrentCustomer.NotfallContact.Surname = input;
                 }
-                StateHasChanged();
+                SafeStateHasChanged();
             }
         }
         // Falggen
@@ -129,136 +170,277 @@ namespace WSB_Management.Components.Pages
         {
             _context = context;
         }
-        public void SaveCustomer()
+        public async Task SaveCustomerAsync()
         {
-            var isNew = CurrentCustomer.Id == 0;
+            if (_isDisposed) return;
 
-            if (isNew)
+            try
             {
-                CurrentCustomer.Validfrom = DateTime.UtcNow;
-                _context.Customers.Add(CurrentCustomer);
-            }
-            else
-            {
-                _context.Customers.Update(CurrentCustomer);
-            }
-
-             _context.SaveChanges();
-
-            SelectedCustomer = null;
-            NewCustomer = new Customer();     
-            StateHasChanged();
-        }
-        public void DeleteCustomer(long? customerId)
-        {
-            var customer = _context.Customers
-                .Include(c => c.Address)
-                .Include(c => c.Contact)
-                .FirstOrDefault(c => c.Id == customerId);
-
-            if (customer == null) return;
-
-            var cups = _context.Cups
-                .Include(c => c.CupTeams).ThenInclude(t => t.Members)
-                .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
-                .ToList();
-
-            foreach (var cup in cups)
-            {
-                if (cup.CupTeams == null) continue;
-
-                foreach (var team in cup.CupTeams)
+                // Basic Validation
+                if (string.IsNullOrWhiteSpace(CurrentCustomer?.Contact?.Firstname) && 
+                    string.IsNullOrWhiteSpace(CurrentCustomer?.Contact?.Surname))
                 {
-                    if (team.TeamChef != null && team.TeamChef.Id == customerId)
-                        team.TeamChef = null;
+                    // Optional: Add validation message
+                    return;
+                }
 
-                    if (team.Members != null)
+                var isNew = CurrentCustomer.Id == 0;
+                
+                if (isNew)
+                {
+                    CurrentCustomer.Validfrom = DateTime.UtcNow;
+                    _context.Customers.Add(CurrentCustomer);
+                }
+                else
+                {
+                    // Prüfen ob die Entität bereits getrackt wird
+                    var tracked = _context.Customers.Local.FirstOrDefault(c => c.Id == CurrentCustomer.Id);
+                    if (tracked != null)
                     {
-                        var index = team.Members.FindIndex(m => m.Id == customerId);
-                        if (index >= 0) team.Members.RemoveAt(index);
+                        // Vorhandene getrackte Entität aktualisieren
+                        _context.Entry(tracked).CurrentValues.SetValues(CurrentCustomer);
+                    }
+                    else
+                    {
+                        // Entität anhängen und als geändert markieren
+                        _context.Customers.Attach(CurrentCustomer);
+                        _context.Entry(CurrentCustomer).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
                     }
                 }
+
+                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                // Cache invalidieren für Grid-Refresh
+                InvalidateCustomersCache();
+
+                SelectedCustomer = null;
+                NewCustomer = new Customer();
+
+                if (!_isDisposed && grid is not null)
+                {
+                    try
+                    {
+                        await grid.RefreshDataAsync();
+                    }
+                    catch (ObjectDisposedException) { return; }
+                    catch (InvalidOperationException) { return; }
+                    catch (TaskCanceledException) { return; }
+                    catch (Exception) { return; }
+                }
+
+                SafeStateHasChanged();
             }
+            catch (ObjectDisposedException) { return; }
+            catch (InvalidOperationException) { return; }
+            catch (TaskCanceledException) { return; }
+            catch (Exception)
+            {
+                SafeStateHasChanged();
+            }
+        }
+        public async Task DeleteCustomer(long? customerId)
+        {
+            if (_isDisposed) return;
 
-            _context.Customers.Remove(customer);
-            _context.SaveChanges();
+            try
+            {
+                var customer = _context.Customers
+                    .Include(c => c.Address)
+                    .Include(c => c.Contact)
+                    .FirstOrDefault(c => c.Id == customerId);
 
-            if (SelectedCustomer?.Id == customerId) SelectedCustomer = null;
-            NewCustomer = new Customer();
-            StateHasChanged();
+                if (customer == null) return;
+
+                var cups = await _context.Cups
+                    .Include(c => c.CupTeams).ThenInclude(t => t.Members)
+                    .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
+                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                foreach (var cup in cups)
+                {
+                    if (cup.CupTeams == null) continue;
+
+                    foreach (var team in cup.CupTeams)
+                    {
+                        if (team.TeamChef != null && team.TeamChef.Id == customerId)
+                            team.TeamChef = null;
+
+                        if (team.Members != null)
+                        {
+                            var index = team.Members.FindIndex(m => m.Id == customerId);
+                            if (index >= 0) team.Members.RemoveAt(index);
+                        }
+                    }
+                }
+
+                _context.Customers.Remove(customer);
+                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                // Cache invalidieren für Grid-Refresh
+                InvalidateCustomersCache();
+
+                if (SelectedCustomer?.Id == customerId) SelectedCustomer = null;
+                NewCustomer = new Customer();
+
+                if (!_isDisposed && grid is not null)
+                {
+                    try
+                    {
+                        await grid.RefreshDataAsync();
+                    }
+                    catch (ObjectDisposedException) { return; }
+                    catch (InvalidOperationException) { return; }
+                    catch (TaskCanceledException) { return; }
+                    catch (Exception) { return; }
+                }
+
+                SafeStateHasChanged();
+            }
+            catch (ObjectDisposedException) { return; }
+            catch (InvalidOperationException) { return; }
+            catch (TaskCanceledException) { return; }
+            catch (Exception) { return; }
         }
         private async Task<GridDataProviderResult<Customer>> CustomerDataProvider(GridDataProviderRequest<Customer> request)
         {
-            if (customers is null)
-                customers = await _context.Customers
-                .Include(c => c.Address).ThenInclude(a => a.Country)
-                .Include(c => c.Gruppe)
-                .Include(c => c.Contact)
-                .Include(c => c.NotfallContact)
-                .Include(c => c.Bike).ThenInclude(b => b.Brand)
-                .OrderBy(c => c.Contact!.Surname)
-                .ToListAsync();
+            if (_isDisposed) return new GridDataProviderResult<Customer> { Data = new List<Customer>(), TotalCount = 0 };
 
-            return await Task.FromResult(request.ApplyTo(customers));
+            try
+            {
+                if (customers is null)
+                {
+                    customers = await _context.Customers
+                        .Include(c => c.Address).ThenInclude(a => a.Country)
+                        .Include(c => c.Gruppe)
+                        .Include(c => c.Contact)
+                        .Include(c => c.NotfallContact)
+                        .Include(c => c.Bike).ThenInclude(b => b.Brand)
+                        .AsNoTracking()
+                        .OrderBy(c => c.Contact!.Surname)
+                        .ToListAsync(_cts?.Token ?? CancellationToken.None);
+                }
+
+                if (_isDisposed) return new GridDataProviderResult<Customer> { Data = new List<Customer>(), TotalCount = 0 };
+
+                return await Task.FromResult(request.ApplyTo(customers));
+            }
+            catch (ObjectDisposedException) 
+            { 
+                return new GridDataProviderResult<Customer> { Data = new List<Customer>(), TotalCount = 0 }; 
+            }
+            catch (TaskCanceledException) 
+            { 
+                return new GridDataProviderResult<Customer> { Data = new List<Customer>(), TotalCount = 0 }; 
+            }
         }
         private void OnSelectedItemsChanged(IEnumerable<Customer> selected)
         {
             var row = selected.FirstOrDefault();
             SelectedCustomer = row;
-            StateHasChanged();
+            SafeStateHasChanged();
         }
         private void EnsureAddress()
         {
             if (CurrentCustomer.Address == null)
                 CurrentCustomer.Address = new Address();
         }
+        
+        private void EnsureNotfallContact()
+        {
+            if (CurrentCustomer.NotfallContact == null)
+                CurrentCustomer.NotfallContact = new Contact();
+        }
         protected override async Task OnInitializedAsync()
         {
-            countries = await _context.Countries
-                .OrderBy(c => c.Shorttxt)
-                .ToListAsync();
+            if (_isDisposed) return;
 
-            gruppen = await _context.Gruppes.ToListAsync();
-
-            brands = await _context.Brands
-                .OrderBy(b => b.Name)
-                .ToListAsync();
-
-            cups = await _context.Cups.Include(c => c.CupTeams)
-                .ThenInclude(t => t.TeamChef)
-                .Where(c => c.Name != "TC5K" && c.Name != "END Cup")
-                .OrderBy(c => c.Name)
-                .ToListAsync();
-
-            Tc5kCup = await _context.Cups
-                .Include(c => c.CupTeams).ThenInclude(t => t.Members)
-                .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
-                .FirstOrDefaultAsync(c => c.Name == "TC5K");
-
-            EndCup = await _context.Cups
-                .Include(c => c.CupTeams).ThenInclude(t => t.Members)
-                .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
-                .FirstOrDefaultAsync(c => c.Name == "END Cup");
-
-            AllTeams = await _context.Teams
-                .Include(t => t.Members)
-                .Include(t => t.TeamChef)
-                .OrderBy(t => t.Name)
-                .ToListAsync();
-
-            if (Tc5kCup == null)
+            try
             {
-                Tc5kCup = new Cup { Name = "TC5K", CupTeams = new List<Team>() };
-                _context.Cups.Add(Tc5kCup);
-                await _context.SaveChangesAsync();
+                countries = await _context.Countries
+                    .AsNoTracking()
+                    .OrderBy(c => c.Shorttxt)
+                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
+
+                transponders = await _context.Transponders
+                    .AsNoTracking()
+                    .OrderBy(c => c.Id)
+                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                gruppen = await _context.Gruppes
+                    .AsNoTracking()
+                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                brands = await _context.Brands
+                    .AsNoTracking()
+                    .OrderBy(b => b.Name)
+                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                cups = await _context.Cups.Include(c => c.CupTeams)
+                    .ThenInclude(t => t.TeamChef)
+                    .Where(c => c.Name != "TC5K" && c.Name != "END Cup")
+                    .OrderBy(c => c.Name)
+                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                Tc5kCup = await _context.Cups
+                    .Include(c => c.CupTeams).ThenInclude(t => t.Members)
+                    .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
+                    .FirstOrDefaultAsync(c => c.Name == "TC5K", _cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                EndCup = await _context.Cups
+                    .Include(c => c.CupTeams).ThenInclude(t => t.Members)
+                    .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
+                    .FirstOrDefaultAsync(c => c.Name == "END Cup", _cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                AllTeams = await _context.Teams
+                    .Include(t => t.Members)
+                    .Include(t => t.TeamChef)
+                    .OrderBy(t => t.Name)
+                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                if (Tc5kCup == null)
+                {
+                    Tc5kCup = new Cup { Name = "TC5K", CupTeams = new List<Team>() };
+                    _context.Cups.Add(Tc5kCup);
+                    await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                }
+                
+                if (_isDisposed) return;
+                
+                if (EndCup == null)
+                {
+                    EndCup = new Cup { Name = "END Cup", CupTeams = new List<Team>() };
+                    _context.Cups.Add(EndCup);
+                    await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                }
+                
+                if (_isDisposed) return;
+                
+                InitCupStateFromDb();
             }
-            if (EndCup == null)
-            {
-                EndCup = new Cup { Name = "END Cup", CupTeams = new List<Team>() };
-                _context.Cups.Add(EndCup);
-                await _context.SaveChangesAsync();
-            }
-            InitCupStateFromDb();
+            catch (ObjectDisposedException) { return; }
+            catch (InvalidOperationException) { return; }
+            catch (TaskCanceledException) { return; }
+            catch (Exception) { return; }
         }
 
         private void InitCupStateFromDb()
@@ -286,26 +468,36 @@ namespace WSB_Management.Components.Pages
             EndTeamSuggestions = SuggestTeams("");
         }
         // ---------- TC5K Events ----------
-        private void ToggleParticipatesTc5k(bool value)
+        private async Task ToggleParticipatesTc5k(bool value)
         {
-            Tc5kParticipates = value;
+            if (_isDisposed) return;
 
-            if (!value)
+            try
             {
-                RemoveCustomerFromCup(Tc5kCup!, CurrentCustomer);
-                Tc5kTeam = null;
-                Tc5kTeamQuery = "";
-                Tc5kIsTeamChef = false;
-            }
-            else
-            {
-                if (!string.IsNullOrWhiteSpace(Tc5kTeamQuery))
+                Tc5kParticipates = value;
+
+                if (!value)
                 {
-                    Tc5kTeam = FindOrCreateTeam(Tc5kTeamQuery.Trim(), Tc5kCup!);
-                    EnsureMember(Tc5kTeam, CurrentCustomer);
+                    RemoveCustomerFromCup(Tc5kCup!, CurrentCustomer);
+                    Tc5kTeam = null;
+                    Tc5kTeamQuery = "";
+                    Tc5kIsTeamChef = false;
                 }
+                else
+                {
+                    if (!string.IsNullOrWhiteSpace(Tc5kTeamQuery))
+                    {
+                        Tc5kTeam = FindOrCreateTeam(Tc5kTeamQuery.Trim(), Tc5kCup!);
+                        EnsureMember(Tc5kTeam, CurrentCustomer);
+                    }
+                }
+                
+                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                SafeStateHasChanged();
             }
-            _context.SaveChangesAsync();
+            catch (ObjectDisposedException) { return; }
+            catch (TaskCanceledException) { return; }
+            catch (Exception) { return; }
         }
 
         private async Task ToggleTeamchefTc5k(bool value)
@@ -354,25 +546,34 @@ namespace WSB_Management.Components.Pages
         // ---------- END Events ----------
         private async Task ToggleParticipatesEnd(bool value)
         {
-            EndParticipates = value;
+            if (_isDisposed) return;
 
-            if (!value)
+            try
             {
-                RemoveCustomerFromCup(EndCup!, CurrentCustomer);
-                EndTeam = null;
-                EndTeamQuery = "";
-                EndIsTeamChef = false;
-            }
-            else
-            {
-                if (!string.IsNullOrWhiteSpace(EndTeamQuery))
+                EndParticipates = value;
+
+                if (!value)
                 {
-                    EndTeam = FindOrCreateTeam(EndTeamQuery.Trim(), EndCup!);
-                    EnsureMember(EndTeam, CurrentCustomer);
+                    RemoveCustomerFromCup(EndCup!, CurrentCustomer);
+                    EndTeam = null;
+                    EndTeamQuery = "";
+                    EndIsTeamChef = false;
                 }
-            }
+                else
+                {
+                    if (!string.IsNullOrWhiteSpace(EndTeamQuery))
+                    {
+                        EndTeam = FindOrCreateTeam(EndTeamQuery.Trim(), EndCup!);
+                        EnsureMember(EndTeam, CurrentCustomer);
+                    }
+                }
 
-            await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                SafeStateHasChanged();
+            }
+            catch (ObjectDisposedException) { return; }
+            catch (TaskCanceledException) { return; }
+            catch (Exception) { return; }
         }
 
         private async Task ToggleTeamchefEnd(bool value)

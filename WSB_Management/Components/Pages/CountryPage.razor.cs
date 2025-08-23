@@ -3,9 +3,6 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.ObjectModel;
-using System.Globalization;
-using System.Text;
 using WSB_Management.Data;
 using WSB_Management.Models;
 
@@ -31,13 +28,13 @@ namespace WSB_Management.Components.Pages
         private void SafeStateHasChanged()
         {
             if (_isDisposed) return;
-            try 
-            { 
+            try
+            {
                 if (!_isDisposed)
                     StateHasChanged();
-            } 
-            catch (ObjectDisposedException) { /* Component disposed */ }
-            catch (InvalidOperationException) { /* Renderer disposed */ }
+            }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
         }
         private Grid<Country>? grid;
 
@@ -55,7 +52,6 @@ namespace WSB_Management.Components.Pages
             }
         }
 
-
         private Country _newCountry = new();
         public Country NewCountry
         {
@@ -65,13 +61,19 @@ namespace WSB_Management.Components.Pages
                 if (_newCountry != value)
                 {
                     _newCountry = value;
-                    StateHasChanged();
+                    SafeStateHasChanged();
                 }
             }
         }
 
         private Country CurrentCountry => SelectedCountry ?? NewCountry;
         public List<Country> countries { get; set; } = new();
+
+        // Cache invalidieren
+        private void InvalidateCountriesCache()
+        {
+            countries = new List<Country>();
+        }
 
         [Inject] private IWebHostEnvironment Env { get; set; } = default!;
         private string UploadSubFolder { get; set; } = "flags";
@@ -83,22 +85,52 @@ namespace WSB_Management.Components.Pages
 
         private string SelectedFlagPath => CurrentCountry?.FlagPath ?? "";
 
+        private string? _fileNameBase;
+        public string FileNameBase { 
+            get => _fileNameBase; 
+            set 
+            { 
+                if (_fileNameBase != value)
+                {
+                    _fileNameBase = value;
+                    CurrentCountry.UpdateFlagPath(_fileNameBase);
+                    SafeStateHasChanged();
+                }
+            } 
+        }
+
         private readonly WSBRacingDbContext _context;
         public CountryPage(WSBRacingDbContext context)
         {
             _context = context;
         }
+
         public async Task SaveCountry()
         {
             if (_isDisposed) return;
 
             try
             {
+                // Validierung
+                if (string.IsNullOrWhiteSpace(CurrentCountry?.Shorttxt) &&
+                    string.IsNullOrWhiteSpace(CurrentCountry?.Longtxt))
+                {
+                    Message = "Bitte mindestens Kurz- oder Langtext eingeben.";
+                    SafeStateHasChanged();
+                    return;
+                }
+
+                // FlagPath sicherstellen (falls Upload noch nicht erfolgt ist)
+                if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
+                {
+                    CurrentCountry.UpdateFlagPath(FileNameBase);
+                }
+
                 var isNew = CurrentCountry.Id == 0;
-                
-                if (isNew) 
+
+                if (isNew)
                     _context.Countries.Add(CurrentCountry);
-                else 
+                else
                 {
                     var tracked = _context.Countries.Local.FirstOrDefault(c => c.Id == CurrentCountry.Id);
                     if (tracked != null)
@@ -106,7 +138,7 @@ namespace WSB_Management.Components.Pages
                     else
                     {
                         _context.Countries.Attach(CurrentCountry);
-                        _context.Entry(CurrentCountry).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+                        _context.Entry(CurrentCountry).State = EntityState.Modified;
                     }
                 }
 
@@ -115,7 +147,7 @@ namespace WSB_Management.Components.Pages
                 if (_isDisposed) return;
 
                 Message = $"Gespeichert: {CurrentCountry.FlagPath}";
-                countries = await _context.Countries.AsNoTracking().ToListAsync(_cts?.Token ?? CancellationToken.None);
+                InvalidateCountriesCache();
 
                 if (_isDisposed) return;
 
@@ -148,9 +180,29 @@ namespace WSB_Management.Components.Pages
 
         private async Task<GridDataProviderResult<Country>> CountryDataProvider(GridDataProviderRequest<Country> request)
         {
-            if (countries is null || countries.Count == 0)
-                countries = await _context.Countries.AsNoTracking().ToListAsync();
-            return await Task.FromResult(request.ApplyTo(countries));
+            if (_isDisposed) return new GridDataProviderResult<Country> { Data = new List<Country>(), TotalCount = 0 };
+
+            try
+            {
+                if (countries is null || countries.Count == 0)
+                {
+                    countries = await _context.Countries
+                        .AsNoTracking()
+                        .ToListAsync(_cts?.Token ?? CancellationToken.None);
+                }
+
+                if (_isDisposed) return new GridDataProviderResult<Country> { Data = new List<Country>(), TotalCount = 0 };
+
+                return await Task.FromResult(request.ApplyTo(countries));
+            }
+            catch (ObjectDisposedException)
+            {
+                return new GridDataProviderResult<Country> { Data = new List<Country>(), TotalCount = 0 };
+            }
+            catch (TaskCanceledException)
+            {
+                return new GridDataProviderResult<Country> { Data = new List<Country>(), TotalCount = 0 };
+            }
         }
 
         private void OnSelectedItemsChanged(IEnumerable<Country> selected)
@@ -158,54 +210,66 @@ namespace WSB_Management.Components.Pages
             var row = selected.FirstOrDefault();
             SelectedCountry = row ?? new Country();
             _previousFlagPath = SelectedCountry?.FlagPath;
-            StateHasChanged();
+            SafeStateHasChanged();
         }
 
         private async Task OnPngSelected(InputFileChangeEventArgs e)
         {
-            var file = e.File;
-            if (file is null) return;
+            if (_isDisposed) return;
 
-            var ext = Path.GetExtension(file!.Name).ToLowerInvariant();
-            if (ext != ".png" || !string.Equals(file.ContentType, "image/png", StringComparison.OrdinalIgnoreCase))
+            try
             {
-                Message = "Nur PNG erlaubt.";
-                StateHasChanged();
-                return;
+                var file = e.File;
+                if (file is null) return;
+
+                var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+                if (ext != ".png" || !string.Equals(file.ContentType, "image/png", StringComparison.OrdinalIgnoreCase))
+                {
+                    Message = "Nur PNG erlaubt.";
+                    SafeStateHasChanged();
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
+                    CurrentCountry.UpdateFlagPath(FileNameBase);
+
+                if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
+                {
+                    Message = "Kein Zielpfad. Bitte Shorttxt/Longtxt setzen.";
+                    SafeStateHasChanged();
+                    return;
+                }
+
+                var newPhys = PhysicalFromWebPath(Env, CurrentCountry.FlagPath);
+                Directory.CreateDirectory(Path.GetDirectoryName(newPhys)!);
+
+                if (!string.IsNullOrWhiteSpace(_previousFlagPath) &&
+                    !string.Equals(_previousFlagPath, CurrentCountry.FlagPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    var oldPhys = PhysicalFromWebPath(Env, _previousFlagPath);
+                    if (File.Exists(oldPhys))
+                        TryDeleteFile(oldPhys);
+                }
+
+                if (File.Exists(newPhys))
+                    TryDeleteFile(newPhys);
+
+                await using var read = file.OpenReadStream(MaxFileSize);
+                await using var write = File.Create(newPhys);
+                await read.CopyToAsync(write, _cts?.Token ?? CancellationToken.None);
+
+                _previousFlagPath = CurrentCountry.FlagPath;
+
+                Message = $"Datei: {CurrentCountry.FlagPath}";
+                SafeStateHasChanged();
             }
-
-            if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
-                CurrentCountry.UpdateFlagPath();
-
-            if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
+            catch (ObjectDisposedException) { return; }
+            catch (TaskCanceledException) { return; }
+            catch (Exception ex)
             {
-                Message = "Kein Zielpfad. Bitte Shorttxt/Longtxt setzen.";
-                StateHasChanged();
-                return;
+                Message = $"Fehler beim Upload: {ex.Message}";
+                SafeStateHasChanged();
             }
-
-            var newPhys = PhysicalFromWebPath(Env, CurrentCountry.FlagPath);
-            Directory.CreateDirectory(Path.GetDirectoryName(newPhys)!);
-
-            if (!string.IsNullOrWhiteSpace(_previousFlagPath) &&
-                !string.Equals(_previousFlagPath, CurrentCountry.FlagPath, StringComparison.OrdinalIgnoreCase))
-            {
-                var oldPhys = PhysicalFromWebPath(Env, _previousFlagPath);
-                if (File.Exists(oldPhys))
-                    TryDeleteFile(oldPhys);
-            }
-
-            if (File.Exists(newPhys))
-                TryDeleteFile(newPhys);
-
-            await using var read = file.OpenReadStream(MaxFileSize);
-            await using var write = File.Create(newPhys);
-            await read.CopyToAsync(write);
-
-            _previousFlagPath = CurrentCountry.FlagPath;
-
-            Message = $"Datei: {CurrentCountry.FlagPath}";
-            StateHasChanged();
         }
 
         public async Task DeleteCountryAsync(long? countryId)
@@ -229,13 +293,13 @@ namespace WSB_Management.Components.Pages
 
                 if (_isDisposed) return;
 
-                countries = await _context.Countries.AsNoTracking().ToListAsync(_cts?.Token ?? CancellationToken.None);
-                
+                InvalidateCountriesCache();
+
                 if (_isDisposed) return;
-                
+
                 if (SelectedCountry?.Id == countryId) SelectedCountry = null;
                 NewCountry = new Country();
-                
+
                 if (!_isDisposed && grid is not null)
                 {
                     try

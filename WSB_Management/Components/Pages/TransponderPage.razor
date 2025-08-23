@@ -1,0 +1,93 @@
+﻿@using WSB_Management.Components.Customs
+@using WSB_Management.Components.Layout
+@using System.ComponentModel.DataAnnotations
+@using WSB_Management.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+@page "/management/transponder"
+@rendermode InteractiveServer
+@layout MainLayout
+
+<PageTitle>WSB-Sport - Transponder</PageTitle>
+<HeadContent>
+    <link rel="stylesheet" href="@Assets["transponder.css"]" />
+</HeadContent>
+
+<div class="group-div">
+    <div class="transponder-liste-header">
+        <p class="transponder-titel">Liste aller Transponder</p>
+    </div>
+
+    <div class="grid-scroll-wrapper">
+        <Grid TItem="Transponder"
+              @ref="grid"
+              Class="table table-hover table-bordered table-striped"
+              AllowSorting="true"
+              AllowFiltering="true"
+              AllowSelection="true"
+              Responsive="true"
+              AllowPaging="false"
+              DataProvider="@TransponderDataProvider"
+              RowKeySelector="t => t.Id"
+              SelectionMode="GridSelectionMode.Single"
+              Style="height:43rem;"
+              SelectedItemsChanged="OnSelectedItemsChanged">
+
+            <GridColumns>
+                <GridColumn TItem="Transponder" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id"
+                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                    @context.Id
+                </GridColumn>
+
+                <GridColumn TItem="Transponder" HeaderText="Bezeichnung" PropertyName="Bezeichung" SortKeySelector="x => x.Bezeichung"
+                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                    @context.Bezeichung
+                </GridColumn>
+
+                <GridColumn TItem="Transponder" HeaderText="Nummer" PropertyName="Number" SortKeySelector="x => x.Number"
+                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                    @context.Number
+                </GridColumn>
+
+                <GridColumn TItem="Transponder" HeaderText="Aktionen" Filterable="false" Sortable="false"
+                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                    <button class="icon-btn tabel-del-btn"
+                            @onclick="() => DeleteTransponderAsync(context.Id)"
+                            @onclick:stopPropagation="true"
+                            title="Löschen">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                </GridColumn>
+            </GridColumns>
+        </Grid>
+    </div>
+</div>
+
+<div id="splitter"></div>
+
+<div class="card details-card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="fw-semibold">Transponder bearbeiten</span>
+        <Button Color="ButtonColor.Danger" Size="ButtonSize.Small" @onclick="SaveTransponder">Speichern</Button>
+    </div>
+
+    <div class="card-body" style="padding: 4px;">
+        <div class="row g-3 align-items-start">
+            <div class="col-md-6">
+                <label class="form-label">Bezeichnung</label>
+                <input class="form-control" type="text" @bind="CurrentTransponder.Bezeichung" placeholder="Bezeichnung eingeben" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Nummer</label>
+                <input class="form-control" type="text" @bind="CurrentTransponder.Number" placeholder="Nummer eingeben" />
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <div class="col-12">
+                    <small class="text-muted" style="margin:0;">@Message</small>
+                </div>
+            }
+        </div>
+    </div>
+</div>

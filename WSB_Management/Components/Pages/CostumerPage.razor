@@ -21,6 +21,7 @@
     </div>
     <div class="grid-scroll-wrapper">
         <Grid TItem="Customer"
+              @ref="grid"
               Class="table table-hover table-bordered table-striped"
               AllowSorting="true"
               AllowFiltering="true"
@@ -189,20 +190,15 @@
                          Items="gruppen"
                          TextSelector="g => g.Name"
                          class="gruppe-select" />
-
         </div>
     </div>
     <div class="bike-race-group">
         <div>
             <div class="bike-wrapper">
                 <label>Bike</label>
-                <select @bind="CurrentCustomer.Bike.Brand">
-                    <option value="">– Marke wählen –</option>
-                    @foreach (var brand in brands)
-                    {
-                        <option value="@brand">@brand</option>
-                    }
-                </select>
+                <InputSelectBrand @bind-Value="CurrentCustomer.Bike.Brand"
+                    Items="brands"
+                    class="land-select" />
                 <label>Type</label>
                 <input type="text" @bind="CurrentCustomer.Bike.Type" placeholder="Type" />
                 <label>Klasse</label>
@@ -214,9 +210,13 @@
                 <label>Baujahr</label>
                 <input type="number" @bind="CurrentCustomer.Bike.Year" placeholder="Baujahr" />
                 <label>Tran</label>
-                <input type="text" @bind="CurrentCustomer.Transponder.Bezeichung" placeholder="Tran" />
-                <label>Tran ID</label>
-                <input type="text" @bind="CurrentCustomer.Transponder.Number" placeholder="Tran ID" disabled class="tran-id" />
+                <InputSelectTransponder @bind-Value="CurrentCustomer.Transponder"
+                                        Items="transponders"
+                                        class="land-select" />
+                <label>Tran Id</label>
+                <input type="text"
+                       value="@CurrentCustomer.Transponder?.Number"
+                       class="tran-id" />
                 <label class="letzte-buch-label">Letzte Buchung</label>
                 <input type="date" @bind="CurrentCustomer.letzteBuchung" placeholder="Letzte Buchung" />
              </div>

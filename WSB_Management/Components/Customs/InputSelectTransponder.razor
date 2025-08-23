@@ -1,0 +1,48 @@
+﻿@using System.Globalization
+@using WSB_Management.Models
+@inherits InputBase<Transponder?>
+
+<select class="@CssClass"
+        @attributes="AdditionalAttributes"
+        @bind="CurrentValueAsString">
+    <option value="">– Transponder wählen –</option>
+    @if (Items != null)
+    {
+        foreach (var t in Items)
+        {
+            <option value="@t.Id">@BuildText(t)</option>
+        }
+    }
+</select>
+
+@code {
+    [Parameter] public IEnumerable<Transponder>? Items { get; set; }
+    [Parameter] public Func<Transponder, string>? TextSelector { get; set; }
+
+    protected override bool TryParseValueFromString(string? value, out Transponder? result, out string? validationErrorMessage)
+    {
+        result = null;
+        validationErrorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(value))
+            return true; // -> null
+
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+        {
+            result = Items?.FirstOrDefault(x => x.Id == id);
+            if (result != null) return true;
+
+            validationErrorMessage = $"Unbekannte Transponder-Id: {id}";
+            return false;
+        }
+
+        validationErrorMessage = "Ungültige Eingabe.";
+        return false;
+    }
+
+    protected override string? FormatValueAsString(Transponder? value)
+        => value?.Id.ToString(CultureInfo.InvariantCulture);
+
+    private string BuildText(Transponder t)
+        => TextSelector?.Invoke(t) ?? $"{t.Bezeichung} ({t.Number})";
+}
