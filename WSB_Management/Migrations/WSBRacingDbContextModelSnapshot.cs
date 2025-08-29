@@ -217,7 +217,7 @@ namespace WSB_Management.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
-                    b.Property<long>("BikeId")
+                    b.Property<long?>("BikeId")
                         .HasColumnType("bigint");
 
                     b.Property<long>("CustomerId")
@@ -229,7 +229,19 @@ namespace WSB_Management.Migrations
                     b.Property<TimeSpan>("Laptime")
                         .HasColumnType("time(6)");
 
-                    b.Property<long>("TransponderId")
+                    b.Property<string>("Notes")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("ParticipationDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("RegistrationDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("TransponderId")
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
@@ -685,9 +697,7 @@ namespace WSB_Management.Migrations
                 {
                     b.HasOne("WSB_Management.Models.Bike", "Bike")
                         .WithMany()
-                        .HasForeignKey("BikeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("BikeId");
 
                     b.HasOne("WSB_Management.Models.Customer", "Customer")
                         .WithMany()
@@ -696,16 +706,14 @@ namespace WSB_Management.Migrations
                         .IsRequired();
 
                     b.HasOne("WSB_Management.Models.Event", "Event")
-                        .WithMany()
+                        .WithMany("CustomerEvents")
                         .HasForeignKey("EventId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("WSB_Management.Models.Transponder", "Transponder")
                         .WithMany()
-                        .HasForeignKey("TransponderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TransponderId");
 
                     b.Navigation("Bike");
 
@@ -792,6 +800,11 @@ namespace WSB_Management.Migrations
             modelBuilder.Entity("WSB_Management.Models.Cup", b =>
                 {
                     b.Navigation("CupTeams");
+                });
+
+            modelBuilder.Entity("WSB_Management.Models.Event", b =>
+                {
+                    b.Navigation("CustomerEvents");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Team", b =>

@@ -78,11 +78,7 @@ namespace WSB_Management.Components.Pages
             brands = new List<Brand>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
         }
 
-        private readonly WSBRacingDbContext _context;
-        public BrandPage(WSBRacingDbContext context)
-        {
-            _context = context;
-        }
+        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
 
         public async Task SaveBrand()
         {

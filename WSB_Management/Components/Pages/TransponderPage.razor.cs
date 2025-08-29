@@ -78,11 +78,7 @@ namespace WSB_Management.Components.Pages
             transponders = new List<Transponder>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
         }
 
-        private readonly WSBRacingDbContext _context;
-        public TransponderPage(WSBRacingDbContext context)
-        {
-            _context = context;
-        }
+        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
 
         public async Task SaveTransponder()
         {

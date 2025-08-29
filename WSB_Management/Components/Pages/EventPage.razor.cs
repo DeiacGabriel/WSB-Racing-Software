@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using WSB_Management.Data;
 using WSB_Management.Models;
+using WSB_Management.Services;
 
 namespace WSB_Management.Components.Pages
 {
@@ -79,6 +80,7 @@ namespace WSB_Management.Components.Pages
         }
 
         [Inject] public WSBRacingDbContext _context { get; set; } = default!;
+        [Inject] public EventService EventService { get; set; } = default!;
 
         public async Task SaveEvent()
         {
@@ -123,6 +125,9 @@ namespace WSB_Management.Components.Pages
 
                 Message = $"Gespeichert: {CurrentEvent.Name}";
                 InvalidateEventsCache(); // Cache invalidieren für bessere Performance
+                
+                // NavMenu über Event-Änderung benachrichtigen
+                EventService.NotifyEventsChanged();
 
                 if (_isDisposed) return;
 
@@ -203,6 +208,9 @@ namespace WSB_Management.Components.Pages
                 if (_isDisposed) return;
 
                 InvalidateEventsCache(); // Cache invalidieren für bessere Performance
+                
+                // NavMenu über Event-Änderung benachrichtigen
+                EventService.NotifyEventsChanged();
                 
                 if (_isDisposed) return;
                 

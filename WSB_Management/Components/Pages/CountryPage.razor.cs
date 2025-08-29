@@ -99,11 +99,7 @@ namespace WSB_Management.Components.Pages
             } 
         }
 
-        private readonly WSBRacingDbContext _context;
-        public CountryPage(WSBRacingDbContext context)
-        {
-            _context = context;
-        }
+        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
 
         public async Task SaveCountry()
         {

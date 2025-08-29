@@ -237,15 +237,46 @@
                     </div>
             </div>
             <div class="laptime-container">
-                @foreach (var t in Tracks)
-                {
-                    <div class="laptime-field">
-                        <label>@t.Code</label>
-                        <InputText @bind-Value="t.Value"
-                                   placeholder="@($"{t.Code} (mm:ss,ss)")"
-                                   pattern="@Pattern" />
-                    </div>
-                }
+                <div class="laptime-field">
+                    <label>BRN</label>
+                    <input type="text" placeholder="BRN (mm:ss,ss)" />
+                </div>
+                <div class="laptime-field">
+                    <label>MUG</label>
+                    <input type="text" placeholder="MUG (mm:ss,ss)" />
+                </div>
+                <div class="laptime-field">
+                    <label>CRE</label>
+                    <input type="text" placeholder="CRE (mm:ss,ss)" />
+                </div>
+                <div class="laptime-field">
+                    <label>PAN</label>
+                    <input type="text" placeholder="PAN (mm:ss,ss)" />
+                </div>
+                <div class="laptime-field">
+                    <label>HUN</label>
+                    <input type="text" placeholder="HUN (mm:ss,ss)" />
+                </div>
+                <div class="laptime-field">
+                    <label>RBR</label>
+                    <input type="text" placeholder="RBR (mm:ss,ss)" />
+                </div>
+                <div class="laptime-field">
+                    <label>LAU</label>
+                    <input type="text" placeholder="LAU (mm:ss,ss)" />
+                </div>
+                <div class="laptime-field">
+                    <label>RIJ</label>
+                    <input type="text" placeholder="RIJ (mm:ss,ss)" />
+                </div>
+                <div class="laptime-field">
+                    <label>MST</label>
+                    <input type="text" placeholder="MST (mm:ss,ss)" />
+                </div>
+                <div class="laptime-field">
+                    <label>SLO</label>
+                    <input type="text" placeholder="SLO (mm:ss,ss)" />
+                </div>
             </div>
         </div>
         <div class="btn-column">
@@ -254,5 +285,15 @@
             <button class="filter-btn">Mail archiv</button>
             <button class="filter-btn">Kundenmails</button>
         </div>
+        
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <div class="col-12">
+                <div class="alert alert-info mt-2">
+                    <span>@Message</span>
+                    <button type="button" class="btn-close" @onclick="@(() => Message = null)"></button>
+                </div>
+            </div>
+        }
     </div>   
 </div>

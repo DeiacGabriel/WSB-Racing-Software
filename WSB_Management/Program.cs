@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WSB_Management.Components;
 using WSB_Management.Data;
 using WSB_Management.Models;
+using WSB_Management.Services;
 
 namespace WSB_Management;
 
@@ -15,8 +16,12 @@ public class Program
         var connectionString = builder.Configuration.GetConnectionString("MySQLConnection");
         builder.Services.AddDbContext<WSBRacingDbContext>(options =>
             options.UseMySQL(connectionString ?? throw new InvalidOperationException("MySQLConnection not configured.")));
-
+            
         builder.Services.AddBlazorBootstrap();
+        
+        // EventService für Kommunikation zwischen Komponenten
+        builder.Services.AddScoped<EventService>();
+        
         builder.Services.AddIdentity<Personal, IdentityRole<int>>(options =>
         {
             options.SignIn.RequireConfirmedAccount = false;

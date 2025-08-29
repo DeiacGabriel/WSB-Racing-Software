@@ -1,0 +1,523 @@
+@using WSB_Management.Components.Customs
+@using WSB_Management.Components.Layout
+@using WSB_Management.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using BlazorBootstrap
+@using Microsoft.EntityFrameworkCore
+@using WSB_Management.Data
+
+@page "/events/{EventName}"
+@rendermode InteractiveServer
+@layout MainLayout
+
+<PageTitle>WSB-Sport - @EventName</PageTitle>
+<HeadContent>
+    <link rel="stylesheet" href="~/race.css" />
+</HeadContent>
+
+<div class="group-div">
+    <!-- Kopf / Eventname -->
+    <div class="race-liste-header">
+        <p class="race-titel">@EventName - Event Management</p>
+        <div class="header-btn">
+            <button class="excel-btn">
+                <span class="material-symbols-outlined">
+                    file_export
+                </span>
+                Export
+            </button>
+            <button class="regis-kunde-btn">
+                <span class="material-symbols-outlined">
+                    print
+                </span>
+                Drucken
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-3 col-lg-4">
+            <div class="details-card mb-3">
+                <div class="card-header bg-danger text-white fw-bold">
+                    <i class="bi bi-people-fill me-2"></i>Anmeldestatus
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover m-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Status</th>
+                                @foreach (var day in CurrentEvent?.GetEventDays() ?? new List<DateTime>())
+                                {
+                                    <th class="text-center">@Event.GetGermanDayName(day).Substring(0, 2)</th>
+                                }
+                                <th class="text-center fw-bold">∑</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="ps-3 fw-medium">Gemeldet</td>
+                                @foreach (var day in CurrentEvent?.GetEventDays() ?? new List<DateTime>())
+                                {
+                                    <td class="text-center">
+                                        <span class="badge bg-success">@ParticipationsByDay.GetValueOrDefault(day.Date, 0)</span>
+                                    </td>
+                                }
+                                <td class="text-center">
+                                    <span class="badge bg-success fw-bold">@TotalRegistered</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="ps-3 fw-medium">Zusatzbikes</td>
+                                @foreach (var day in CurrentEvent?.GetEventDays() ?? new List<DateTime>())
+                                {
+                                    <td class="text-center">
+                                        <span class="badge bg-info">@GetAdditionalBikesCountForDay(day)</span>
+                                    </td>
+                                }
+                                <td class="text-center">
+                                    <span class="badge bg-info fw-bold">@TotalAdditionalBikes</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="ps-3 fw-medium">Abwesend</td>
+                                @foreach (var day in CurrentEvent?.GetEventDays() ?? new List<DateTime>())
+                                {
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary">@GetAbsentCountForDay(day)</span>
+                                    </td>
+                                }
+                                <td class="text-center">
+                                    <span class="badge bg-secondary fw-bold">@TotalAbsent</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="ps-3 fw-medium">Warteliste</td>
+                                @foreach (var day in CurrentEvent?.GetEventDays() ?? new List<DateTime>())
+                                {
+                                    <td class="text-center">
+                                        <span class="badge bg-warning text-dark">@GetWaitlistCountForDay(day)</span>
+                                    </td>
+                                }
+                                <td class="text-center">
+                                    <span class="badge bg-warning text-dark fw-bold">@TotalWaitlist</span>
+                                </td>
+                            </tr>
+                            <tr class="table-danger">
+                                <td class="ps-3 fw-bold">Noch frei</td>
+                                @foreach (var day in CurrentEvent?.GetEventDays() ?? new List<DateTime>())
+                                {
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-danger fw-bold">@((CurrentEvent?.maxPersons ?? 0) - ParticipationsByDay.GetValueOrDefault(day.Date, 0))</span>
+                                    </td>
+                                }
+                                <td class="text-center">
+                                    <span class="badge bg-danger text-white fw-bold">@((CurrentEvent?.maxPersons ?? 0) - TotalRegistered)</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="details-card mb-3">
+                <div class="card-header bg-primary text-white fw-bold">
+                    <i class="bi bi-calendar-week me-2"></i>Teilnahme pro Tag
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover m-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Wochentag</th>
+                                <th class="text-center">Teilnehmer</th>
+                                <th class="text-center">Auslastung</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var day in CurrentEvent?.GetEventDays() ?? new List<DateTime>())
+                            {
+                                var participants = ParticipationsByDay.GetValueOrDefault(day.Date, 0);
+                                var maxCapacity = CurrentEvent?.maxPersons ?? 100;
+                                var utilizationPercent = maxCapacity > 0 ? (participants * 100 / maxCapacity) : 0;
+                                var progressClass = utilizationPercent switch
+                                {
+                                    >= 90 => "bg-danger",
+                                    >= 75 => "bg-warning",
+                                    >= 50 => "bg-info",
+                                    _ => "bg-success"
+                                };
+                                
+                                <tr>
+                                    <td class="ps-3 fw-medium">
+                                        <i class="bi bi-calendar3 me-2"></i>
+                                        @Event.GetGermanDayName(day) (@day.ToString("dd.MM"))
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge @progressClass">@participants</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="progress" style="width: 60px; height: 20px;">
+                                            <div class="progress-bar @progressClass" 
+                                                 role="progressbar" 
+                                                 style="width: @utilizationPercent%"
+                                                 aria-valuenow="@utilizationPercent" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                @utilizationPercent%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="details-card mb-3">
+                <div class="card-header bg-warning fw-bold">
+                    <i class="bi bi-motorcycle me-2"></i>Motorrad-Marken
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover m-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Marke</th>
+                                <th class="text-center">Anzahl</th>
+                                <th class="text-center">Anteil</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var totalBikes = _eventParticipations.Count(p => p.Customer?.Bike?.Brand != null);
+                            }
+                            @foreach (var bikeGroup in _eventParticipations
+                                .Where(p => p.Customer?.Bike?.Brand != null)
+                                .GroupBy(p => p.Customer.Bike.Brand.Name)
+                                .OrderByDescending(g => g.Count()))
+                            {
+                                var count = bikeGroup.Count();
+                                var percentage = totalBikes > 0 ? (count * 100 / totalBikes) : 0;
+                                <tr>
+                                    <td class="ps-3 fw-medium">
+                                        <i class="bi bi-gear-fill me-2 text-warning"></i>
+                                        @bikeGroup.Key
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning text-dark">@count</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <small class="text-muted">@percentage%</small>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="details-card">
+                <div class="card-header bg-success text-white fw-bold">
+                    <i class="bi bi-people me-2"></i>Gruppen-Verteilung
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover m-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Gruppe</th>
+                                <th class="text-center">Fahrer</th>
+                                <th class="text-center">Level</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var grouping in _eventParticipations
+                                .Where(p => p.Customer?.Gruppe != null)
+                                .GroupBy(p => p.Customer.Gruppe?.Name)
+                                .OrderBy(g => g.Key))
+                            {
+                                var levelIcon = grouping.Key?.ToUpper() switch
+                                {
+                                    var x when x?.StartsWith("A") == true => "bi-lightning-fill text-danger",
+                                    var x when x?.StartsWith("B") == true => "bi-speedometer2 text-warning",
+                                    var x when x?.StartsWith("C") == true => "bi-speedometer text-info",
+                                    var x when x?.StartsWith("D") == true => "bi-bicycle text-success",
+                                    _ => "bi-person-circle"
+                                };
+                                
+                                <tr>
+                                    <td class="ps-3 fw-medium">
+                                        <i class="@levelIcon me-2"></i>
+                                        @grouping.Key
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success">@grouping.Count()</span>
+                                    </td>
+                                    <td class="text-center">
+                                        @switch (grouping.Key?.ToUpper())
+                                        {
+                                            case var x when x?.StartsWith("A") == true:
+                                                <small class="text-danger fw-bold">Profi</small>
+                                                break;
+                                            case var x when x?.StartsWith("B") == true:
+                                                <small class="text-warning fw-bold">Fortg.</small>
+                                                break;
+                                            case var x when x?.StartsWith("C") == true:
+                                                <small class="text-info fw-bold">Mittel</small>
+                                                break;
+                                            case var x when x?.StartsWith("D") == true:
+                                                <small class="text-success fw-bold">Einst.</small>
+                                                break;
+                                            default:
+                                                <small class="text-muted">-</small>
+                                                break;
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-9 col-lg-8">
+            <div class="details-card mb-3">
+                <div class="card-header bg-light fw-bold d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="bi bi-table me-2"></i>Teilnehmer-Liste
+                        <span class="badge bg-primary ms-2">@_eventParticipations.Count Einträge</span>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-funnel me-1"></i>Filter
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-plus-lg me-1"></i>Hinzufügen
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="grid-scroll-wrapper">
+                        <Grid TItem="CostumerEvent"
+                              @ref="grid"
+                              Class="table table-hover table-striped table-sm mb-0"
+                              AllowSorting="true"
+                              AllowFiltering="true"
+                              AllowSelection="true"
+                              Responsive="true"
+                              AllowPaging="false"
+                              DataProvider="ParticipationDataProvider"
+                              RowKeySelector="p => p.Id"
+                              SelectionMode="GridSelectionMode.Single"
+                              SelectedItemsChanged="OnSelectedItemsChanged">
+
+                            <GridColumns>
+                                <GridColumn TItem="CostumerEvent" HeaderText="Teilnehmer" PropertyName="Customer.Contact.Surname">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; font-size: 12px; font-weight: bold;">
+                                            @(context.Customer?.Contact?.Firstname?.Substring(0, 1))@(context.Customer?.Contact?.Surname?.Substring(0, 1))
+                                        </div>
+                                        <div>
+                                            <div class="fw-medium">@context.Customer?.Contact?.Firstname @context.Customer?.Contact?.Surname</div>
+                                            @if (!string.IsNullOrEmpty(context.Customer?.Startnumber))
+                                            {
+                                                <small class="text-muted">#@context.Customer?.Startnumber</small>
+                                            }
+                                        </div>
+                                    </div>
+                                </GridColumn>
+                                <GridColumn TItem="CostumerEvent" HeaderText="Tag" PropertyName="ParticipationDate">
+                                    <div class="text-center">
+                                        <div class="badge bg-info">@Event.GetGermanDayName(context.ParticipationDate).Substring(0, 2)</div>
+                                        <div><small class="text-muted">@context.ParticipationDate.ToString("dd.MM")</small></div>
+                                    </div>
+                                </GridColumn>
+                                <GridColumn TItem="CostumerEvent" HeaderText="Status" PropertyName="Status">
+                                    @{
+                                        var badgeClass = context.Status switch
+                                        {
+                                            ParticipationStatus.Registered => "bg-success",
+                                            ParticipationStatus.Waitlist => "bg-warning text-dark", 
+                                            ParticipationStatus.Absent => "bg-secondary",
+                                            ParticipationStatus.AdditionalBike => "bg-info",
+                                            _ => "bg-primary"
+                                        };
+                                        var statusText = context.Status switch
+                                        {
+                                            ParticipationStatus.Registered => "Angemeldet",
+                                            ParticipationStatus.Waitlist => "Warteliste",
+                                            ParticipationStatus.Absent => "Abwesend", 
+                                            ParticipationStatus.AdditionalBike => "Zusatzbike",
+                                            _ => context.Status.ToString()
+                                        };
+                                        var statusIcon = context.Status switch
+                                        {
+                                            ParticipationStatus.Registered => "bi-check-circle-fill",
+                                            ParticipationStatus.Waitlist => "bi-clock-fill",
+                                            ParticipationStatus.Absent => "bi-x-circle-fill",
+                                            ParticipationStatus.AdditionalBike => "bi-plus-circle-fill",
+                                            _ => "bi-circle-fill"
+                                        };
+                                    }
+                                    <span class="badge @badgeClass">
+                                        <i class="@statusIcon me-1"></i>@statusText
+                                    </span>
+                                </GridColumn>
+                                <GridColumn TItem="CostumerEvent" HeaderText="Gruppe" PropertyName="Customer.Gruppe.Name">
+                                    @if (context.Customer?.Gruppe != null)
+                                    {
+                                        var levelClass = context.Customer.Gruppe.Name?.ToUpper() switch
+                                        {
+                                            var x when x?.StartsWith("A") == true => "bg-danger",
+                                            var x when x?.StartsWith("B") == true => "bg-warning text-dark",
+                                            var x when x?.StartsWith("C") == true => "bg-info",
+                                            var x when x?.StartsWith("D") == true => "bg-success",
+                                            _ => "bg-secondary"
+                                        };
+                                        <span class="badge @levelClass">@context.Customer.Gruppe.Name</span>
+                                    }
+                                </GridColumn>
+                                <GridColumn TItem="CostumerEvent" HeaderText="Motorrad" PropertyName="Customer.Bike.Brand.Name">
+                                    @if (context.Customer?.Bike != null)
+                                    {
+                                        <div>
+                                            <div class="fw-medium">@context.Customer?.Bike?.Brand?.Name</div>
+                                            @if (!string.IsNullOrEmpty(context.Customer?.Bike?.Type))
+                                            {
+                                                <small class="text-muted">@context.Customer?.Bike?.Type</small>
+                                            }
+                                        </div>
+                                    }
+                                </GridColumn>
+                                <GridColumn TItem="CostumerEvent" HeaderText="Land" PropertyName="Customer.Address.Country.Shorttxt">
+                                    @if (context.Customer?.Address?.Country != null)
+                                    {
+                                        <div class="d-flex align-items-center">
+                                            <img src="@context.Customer.Address.Country.FlagPath" class="flag-table me-2" alt="@context.Customer.Address.Country.Longtxt" />
+                                            <small>@context.Customer.Address.Country.Shorttxt</small>
+                                        </div>
+                                    }
+                                </GridColumn>
+                                <GridColumn TItem="CostumerEvent" HeaderText="Aktionen" Filterable="false" Sortable="false">
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => SelectedParticipation = context">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => DeleteParticipationAsync(context.Id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </GridColumn>
+                            </GridColumns>
+                        </Grid>
+                    </div>
+                </div>
+            </div>
+            <!-- Splitter -->
+            <div id="splitter" class="my-2"></div>
+
+            <!-- KUNDEN-DETAILS (unter dem Grid) -->
+            @if (CurrentParticipation != null && CurrentParticipation.Customer != null)
+            {
+                <div class="details-card detail-group-div p-3">
+                    <div class="kunden-details-group details-container">
+                        <div class="d-flex align-items-center gap-2">
+                            <label>Vorname</label>
+                            <input class="form-control" type="text" @bind="CurrentParticipation.Customer!.Contact!.Firstname" placeholder="Vorname" />
+                            <label>Nachname</label>
+                            <input class="form-control" type="text" @bind="CurrentParticipation.Customer!.Contact!.Surname" placeholder="Nachname" />
+                        </div>
+
+                        <div class="bike-wrapper">
+                            <label>Bike</label>
+                            <InputSelectBrand @bind-Value="@CurrentParticipation.Customer!.Bike!.Brand" Brands="@Brands" />
+                            <input class="form-control" type="text" @bind="CurrentParticipation.Customer!.Bike!.Type" placeholder="Modell (z. B. Panigale V4)" />
+                        </div>
+
+                        <div class="flag-select">
+                            @if (CurrentParticipation.Customer?.Address?.Country != null)
+                            {
+                                <img src="@CurrentParticipation.Customer.Address.Country.FlagPath" alt="Flagge" class="flag-icon" />
+                            }
+                            <input class="form-control adresse-input" type="text" @bind="CurrentParticipation.Customer!.Address!.Street" placeholder="Adresse" />
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2">
+                            <label>Startnr.</label>
+                            <input class="form-control alter-input" type="text" @bind="CurrentParticipation.Customer!.Startnumber" placeholder="Startnummer" />
+                            <label>Gruppe</label>
+                            <InputSelectGruppe @bind-Value="@CurrentParticipation.Customer!.Gruppe" Gruppes="@Gruppen" />
+                        </div>
+                    </div>
+
+                <!-- Rechte Spalte: Zusatzblöcke wie in der Vorlage -->
+                <div class="bike-race-group">
+                    <!-- Tages-/Turn-Auswahl ähnlich Checkbox-Felder -->
+                    <div class="details-card mb-2">
+                        <div class="card-header fw-bold">Tages-/Turn-Auswahl</div>
+                        <div class="card-body d-flex flex-wrap gap-3">
+                            @foreach (var day in CurrentEvent?.GetEventDays() ?? new List<DateTime>())
+                            {
+                                var isParticipating = IsParticipatingOnDay(day);
+                                <div class="checkbox-wrapper">
+                                    <input type="checkbox" id="@day.ToString("yyyy-MM-dd")" 
+                                           checked="@isParticipating" 
+                                           @onchange="@(args => ToggleDayParticipation(day, args.Value?.ToString() == "true"))" />
+                                    <label for="@day.ToString("yyyy-MM-dd")" class="m-0">@Event.GetGermanDayName(day).Substring(0, 2)</label>
+                                </div>
+                            }
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="ausfall" 
+                                       checked="@(CurrentParticipation.Status == ParticipationStatus.Absent)"
+                                       @onchange="@(args => CurrentParticipation.Status = args.Value?.ToString() == "true" ? ParticipationStatus.Absent : ParticipationStatus.Registered)" />
+                                <label for="ausfall" class="m-0">Ausfall</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cup- & Team-Boxen -->
+                    <div class="j-l-container">
+                        <div class="details-card flex-grow-1">
+                            <div class="card-header fw-bold">Transponder</div>
+                            <div class="card-body cup-container">
+                                <div class="cup-field">
+                                    <label>Transponder-Nr</label>
+                                    <InputSelectTransponder @bind-Value="@CurrentParticipation.Transponder" Transponders="@Transponders" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="details-card flex-grow-1">
+                            <div class="card-header fw-bold">Status</div>
+                            <div class="card-body cup-container">
+                                <div class="cup-field">
+                                    <select class="form-control" @bind="@CurrentParticipation.Status">
+                                        <option value="@ParticipationStatus.Registered">Angemeldet</option>
+                                        <option value="@ParticipationStatus.Waitlist">Warteliste</option>
+                                        <option value="@ParticipationStatus.Absent">Abwesend</option>
+                                        <option value="@ParticipationStatus.AdditionalBike">Zusatzbike</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="details-card mt-2">
+                        <div class="card-header fw-bold">Aktionen</div>
+                        <div class="card-body">
+                            <div class="btn-column">
+                                <button type="button" class="btn btn-success" @onclick="SaveParticipationAsync">Speichern</button>
+                                <button type="button" class="btn btn-secondary" @onclick="() => { SelectedParticipation = null; NewParticipation = new(); EnsureParticipationProperties(NewParticipation); }">Neue Anmeldung</button>
+                            </div>
+                            @if (!string.IsNullOrEmpty(Message))
+                            {
+                                <div class="alert alert-info mt-2">@Message</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+            }
+        </div>
+    </div>
+</div>

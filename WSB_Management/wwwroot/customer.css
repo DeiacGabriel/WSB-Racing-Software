@@ -4,16 +4,15 @@ body {
     border-radius: 12px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
     font-family: 'Roboto', sans-serif;
-    display: block;
-    flex-direction: row;
-    align-items: center;
     margin: 0;
 }
+
 input[type="checkbox"] {
-  margin-right: 5rem;
-  transform: scale(1.25);
+    margin-right: 5rem;
+    transform: scale(1.25);
 }
-button{
+
+button {
     height: 35px;
     color: white;
     background-color: #C72E29;
@@ -21,19 +20,24 @@ button{
     border: black 2px solid;
     border-radius: 20px;
 }
-button:hover{
+
+button:hover {
     color: #C72E29;
     background-color: white;
 }
-img{
+
+img {
     width: 12px;
 }
+
 div {
     margin: 4px 0 2px 0;
 }
+
 p {
     margin: 0;
 }
+
 .group-div {
     background-color: white;
     border-radius: 12px;
@@ -43,19 +47,96 @@ p {
     margin: 0;
 }
 
-/* Kunden Filter */
-
-.filter-btn{
+/* Buttons */
+.filter-btn {
     width: 13rem;
 }
-.kunden-titel{
+
+.excel-btn {
+    border: gray 2px solid;
+    background-color: transparent;
+    color: #C72E29;
+}
+
+.excel-btn:hover {
+    background-color: #C72E29;
+    color: white;
+}
+
+.regis-kunde-btn {
+    background-color: #008000;
+}
+
+.regis-kunde-btn:hover {
+    background-color: white;
+    color: #008000;
+}
+
+/* Alert Messages */
+.alert {
+    padding: 1px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.alert-danger {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.alert-info {
+    color: #0c5460;
+    background-color: #d1ecf1;
+    border-color: #b6d4da;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 12px;
+    opacity: 0.7;
+    width: auto;
+    height: auto;
+    border-radius: 0;
+}
+
+.btn-close:hover {
+    opacity: 1;
+    background: none;
+    color: inherit;
+    transform: none;
+}
+
+.btn-close::before {
+    content: "×";
+}
+
+/* Header */
+.kunden-titel {
     font-size: 1.5rem;
     font-weight: bold;
     height: 25px;
     text-align: center;
 }
 
-/* Kunden Liste Header */
 .kunden-liste-header {
     display: flex;
     justify-content: space-between;
@@ -63,24 +144,8 @@ p {
     flex-wrap: wrap;
     margin: 0 1rem;
 }
-.excel-btn {
-    border: gray 2px solid;
-    background-color: transparent;
-    color: #C72E29;
-}
-.excel-btn:hover {
-    background-color: #C72E29;
-    color: white;
-}
-.regis-kunde-btn {
-    background-color: #008000;
-}
-.regis-kunde-btn:hover {
-    background-color: white;
-    color: #008000;
-}
 
-/* Tabelle */
+/* Grid and Tables */
 .grid-scroll-wrapper {
     max-height: 30rem;
     overflow: auto;
@@ -88,37 +153,38 @@ p {
     border-radius: .5rem;
 }
 
-    .grid-scroll-wrapper thead th {
-        position: sticky;
-        top: 0;
-        background: #fff;
-        z-index: 2;
-    }
+.grid-scroll-wrapper thead th {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 2;
+}
 
 .table-hover tbody tr:hover {
     background-color: #f8fbff;
 }
 
+/* Table Buttons */
 .tabel-del-btn img {
     height: 1.1rem;
     display: block;
 }
 
-
 .icon-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  margin-right: 6px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    margin-right: 6px;
 }
 
 .icon-btn img {
-  vertical-align: top;
-  width: 16px;
-  height: 16px;
-  filter: brightness(0) saturate(100%) invert(25%) sepia(83%) saturate(3487%) hue-rotate(343deg) brightness(94%) contrast(101%);
+    vertical-align: top;
+    width: 16px;
+    height: 16px;
+    filter: brightness(0) saturate(100%) invert(25%) sepia(83%) saturate(3487%) hue-rotate(343deg) brightness(94%) contrast(101%);
 }
+
 .tabel-edit-btn, .tabel-del-btn {
     background-color: transparent;
     color: #C72E29;
@@ -126,7 +192,7 @@ p {
     cursor: pointer;
 }
 
-/* Splitter */
+/* Layout */
 #splitter {
     height: 5px;
     margin: 0;
@@ -134,7 +200,7 @@ p {
     border-radius: 12px;
 }
 
-/* Detail Group */
+/* Detail Sections */
 .detail-group-div {
     background-color: white;
     border-radius: 12px;
@@ -143,27 +209,25 @@ p {
     gap: 1rem;
     margin: 0;
 }
+
 .detail-group-div input:focus {
     outline: none;
     border-color: #C72E29;
 }
+
 .detail-group-div label {
     font-size: medium;
     margin: 0;
     display: inline-block;
 }
 
-/* Kunden Details Group */
-.kunden-details-group input {
-    height: 25px;
-    border: transparent 2px solid;
-    border-radius: 20px;
-    text-indent: 0.5rem;
-    background-color: #F1F1F1;
+/* Customer Details */
+.kunden-details-group {
+    margin-left: 1rem;
+    width: 40%;
 }
-.kunden-details-group label{
-    width: 5rem;
-}
+
+.kunden-details-group input,
 .kunden-details-group select {
     height: 25px;
     border: transparent 2px solid;
@@ -171,26 +235,61 @@ p {
     text-indent: 0.5rem;
     background-color: #F1F1F1;
 }
-.kunden-details-group {
-    margin-left: 1rem;
-    width: 40%;
+
+.kunden-details-group label {
+    width: 5rem;
 }
 
+/* Input Field Sizes */
 .firma-select {
     width: 10rem;
 }
+
+.name-input {
+    width: 15rem;
+}
+
+.adresse-input {
+    width: 20.1rem;
+}
+
+.land-select {
+    min-width: 7rem;
+}
+
+.geb-input {
+    width: 15rem;
+}
+
+.alter-input {
+    width: 4.5rem;
+    text-align: center;
+}
+
+.kontakt-input {
+    width: 20.1rem;
+}
+
+.uid-input, .sponsor-input {
+    width: 17.5rem;
+}
+
+.team-select {
+    width: 19.5rem;
+}
+
+.gruppe-select {
+    width: 24rem;
+}
+
+/* Form Elements */
 .details-container {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
     margin: 0.5rem 0;
 }
-.name-input {
-    width: 15rem;
-}
-.adresse-input {
-    width: 20.1rem;
-}
+
 .flag-select {
     display: inline-flex;
     align-items: center;
@@ -206,61 +305,36 @@ p {
     align-items: center;
 }
 
-.land-select {
-    min-width: 7rem;
-}
-.geb-input {
-    width: 15rem;
-}
-.alter-input {
-    width: 4.5rem;
-    text-align: center;
-}
-.kontakt-input {
-    width: 20.1rem;
-}
 .notfall-label {
     font-weight: bold;
     font-size: medium;
     color: red;
 }
-.uid-input, .sponsor-input {
-    width: 17.5rem;
-}
+
 .checkbox-wrapper {
-  display: flex;
-  align-items: center;
+    display: flex;
+    align-items: center;
 }
-.team-select {
-    width: 19.5rem;
-}
-.gruppe-select {
-    width: 24rem;
-}
-.extra-wrapper input[type="number"] {
-    width: 6.5rem;
-    margin-right: 1rem;
-    margin-left: 0.5rem;
-}
+
 .extra-wrapper {
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-/* Bike Race Group */
+.extra-wrapper input[type="number"] {
+    width: 6.5rem;
+    margin-right: 1rem;
+    margin-left: 0.5rem;
+}
+
+/* Bike and Race Section */
 .bike-race-group {
     margin-left: 1rem;
     width: 100%;
 }
-.bike-race-group select {
-    height: 25px;
-    border: transparent 2px solid;
-    border-radius: 20px;
-    text-indent: 0.5rem;
-    background-color: #F1F1F1;
-    margin-right: 1rem;
-}
+
+.bike-race-group select,
 .bike-race-group input {
     height: 25px;
     border: transparent 2px solid;
@@ -270,11 +344,7 @@ p {
     margin-right: 1rem;
 }
 
-/* Bike Wrapper */
-.bike-wrapper select,
-.bike-wrapper input {
-    width: 12rem;
-}
+/* Bike Wrappers */
 .bike-wrapper {
     display: flex;
     flex-direction: row;
@@ -282,7 +352,11 @@ p {
     gap: 0.5rem;
 }
 
-/* Bike Wrapper 2 */
+.bike-wrapper select,
+.bike-wrapper input {
+    width: 12rem;
+}
+
 .bike-wrapper2 {
     display: flex;
     flex-direction: row;
@@ -290,14 +364,15 @@ p {
     gap: 0.5rem;
     margin-top: 0.5rem;
 }
+
 .bike-wrapper2 input {
     width: 11rem;
 }
-.letzte-buch-label{
+
+.letzte-buch-label {
     width: 7rem;
 }
 
-/* Bike Wrapper 3 */
 .bike-wrapper3 {
     display: flex;
     flex-direction: row;
@@ -305,55 +380,66 @@ p {
     gap: 0.5rem;
     margin-top: 0.5rem;
 }
+
 .bike-wrapper3 input {
     width: 10rem;
 }
+
 .bike-wrapper3 .letzte-einkauf-label {
     width: 9rem;
 }
 
-/* Laptime und Jahreswertung */
+/* Laptime and Cup Containers */
 .j-l-container {
     display: flex;
     gap: 1rem;
     margin: 0.5rem 0 0 0;
     align-items: flex-start;
 }
+
 .cup-container {
     display: grid;
     grid-template-columns: repeat(2, minmax(260px, 1fr));
     gap: 6px;
 }
+
 .cup-field {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
     column-gap: 8px;
 }
+
 .laptime-container {
     display: grid;
     grid-template-columns: repeat(2, minmax(260px, 1fr));
     gap: 6px;
 }
+
 .laptime-field {
     display: grid;
     grid-template-columns: 3.5rem 1fr;
     align-items: center;
     column-gap: 8px;
 }
-    .laptime-field input[type="text"] {
-        width: 100%;
-    }
+
+.laptime-field input[type="text"] {
+    width: 100%;
+}
+
+/* Button Column */
 .btn-column {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
     gap: 10px;
 }
-.btn-column button{
+
+.btn-column button {
     height: 1.5rem;
 }
 
+/* Responsive Design */
 @media (max-width: 600px) {
     .laptime-container {
         grid-template-columns: 1fr;

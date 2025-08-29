@@ -20,6 +20,7 @@ public class WSBRacingDbContext : IdentityDbContext<Personal, Position, int>
     public DbSet<Position> Positions { get; set; }
     public DbSet<Team> Teams { get; set; }
     public DbSet<Gruppe> Gruppes { get; set; }
+    
     public WSBRacingDbContext(DbContextOptions<WSBRacingDbContext> options) : base(options)
     {
     }

@@ -102,11 +102,7 @@ namespace WSB_Management.Components.Pages
             gruppen = new List<Gruppe>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
         }
 
-        private readonly WSBRacingDbContext _context;
-        public GroupPage(WSBRacingDbContext context)
-        {
-            _context = context;
-        }
+        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
 
         public async Task SaveGruppe()
         {
@@ -114,7 +110,7 @@ namespace WSB_Management.Components.Pages
 
             try
             {
-                // Basic Validation
+                // Validation
                 if (string.IsNullOrWhiteSpace(CurrentGruppe?.Name))
                 {
                     Message = "Bitte Gruppenname eingeben.";
@@ -126,23 +122,32 @@ namespace WSB_Management.Components.Pages
                 
                 if (isNew)
                 {
-                    _context.Gruppes.Add(CurrentGruppe);
+                    // Neue Gruppe erstellen
+                    var newGruppe = new Gruppe
+                    {
+                        Name = CurrentGruppe.Name,
+                        MaxTimelap = CurrentGruppe.MaxTimelap
+                    };
+                    _context.Gruppes.Add(newGruppe);
                 }
                 else
                 {
-                    // Prüfen ob die Entität bereits getrackt wird
-                    var tracked = _context.Gruppes.Local.FirstOrDefault(g => g.Id == CurrentGruppe.Id);
-                    if (tracked != null)
+                    // Existierende Gruppe aktualisieren
+                    var existingGruppe = await _context.Gruppes
+                        .FirstOrDefaultAsync(g => g.Id == CurrentGruppe.Id, _cts?.Token ?? CancellationToken.None);
+                        
+                    if (existingGruppe == null)
                     {
-                        // Vorhandene getrackte Entität aktualisieren
-                        _context.Entry(tracked).CurrentValues.SetValues(CurrentGruppe);
+                        Message = "❌ Gruppe nicht gefunden.";
+                        SafeStateHasChanged();
+                        return;
                     }
-                    else
-                    {
-                        // Entität anhängen und als geändert markieren
-                        _context.Gruppes.Attach(CurrentGruppe);
-                        _context.Entry(CurrentGruppe).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-                    }
+                    
+                    // Eigenschaften aktualisieren
+                    existingGruppe.Name = CurrentGruppe.Name;
+                    existingGruppe.MaxTimelap = CurrentGruppe.MaxTimelap;
+                    
+                    _context.Gruppes.Update(existingGruppe);
                 }
 
                 await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
@@ -175,9 +180,14 @@ namespace WSB_Management.Components.Pages
             catch (ObjectDisposedException) { return; }
             catch (InvalidOperationException) { return; }
             catch (TaskCanceledException) { return; }
+            catch (DbUpdateException ex)
+            {
+                Message = $"❌ Datenbankfehler beim Speichern: {ex.GetBaseException().Message}";
+                SafeStateHasChanged();
+            }
             catch (Exception ex)
             {
-                Message = $"Fehler beim Speichern: {ex.Message}";
+                Message = $"❌ Fehler beim Speichern: {ex.Message}";
                 SafeStateHasChanged();
             }
         }
@@ -236,14 +246,34 @@ namespace WSB_Management.Components.Pages
 
             try
             {
-                var gruppe = _context.Gruppes.FirstOrDefault(g => g.Id == gruppeId);
-                if (gruppe == null) return;
+                var gruppe = await _context.Gruppes
+                    .FirstOrDefaultAsync(g => g.Id == gruppeId, _cts?.Token ?? CancellationToken.None);
+                    
+                if (gruppe == null) 
+                {
+                    Message = "❌ Gruppe nicht gefunden.";
+                    SafeStateHasChanged();
+                    return;
+                }
+
+                // Prüfen ob Kunden dieser Gruppe zugeordnet sind
+                var customersInGroup = await _context.Customers
+                    .Where(c => c.Gruppe != null && c.Gruppe.Id == gruppeId)
+                    .CountAsync(_cts?.Token ?? CancellationToken.None);
+
+                if (customersInGroup > 0)
+                {
+                    Message = $"❌ Gruppe kann nicht gelöscht werden. {customersInGroup} Kunden sind noch dieser Gruppe zugeordnet.";
+                    SafeStateHasChanged();
+                    return;
+                }
 
                 _context.Gruppes.Remove(gruppe);
                 await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
+                Message = $"✅ Gruppe '{gruppe.Name}' erfolgreich gelöscht.";
                 InvalidateGruppenCache(); // Cache invalidieren für bessere Performance
                 
                 if (_isDisposed) return;
@@ -269,7 +299,16 @@ namespace WSB_Management.Components.Pages
             catch (ObjectDisposedException) { return; }
             catch (InvalidOperationException) { return; }
             catch (TaskCanceledException) { return; }
-            catch (Exception) { return; }
+            catch (DbUpdateException ex)
+            {
+                Message = $"❌ Datenbankfehler beim Löschen: {ex.GetBaseException().Message}";
+                SafeStateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Message = $"❌ Fehler beim Löschen: {ex.Message}";
+                SafeStateHasChanged();
+            }
         }
         
         public async Task AutoAssignCustomersToGroups()
@@ -318,20 +357,27 @@ namespace WSB_Management.Components.Pages
                     
                     if (targetGroup != null && (customer.Gruppe == null || customer.Gruppe.Id != targetGroup.Id))
                     {
-                        customer.Gruppe = targetGroup;
-                        _context.Entry(customer).Property(c => c.Gruppe).IsModified = true;
-                        assignedCount++;
+                        // Gruppe korrekt zuweisen - sicherstellen dass die Gruppe getrackt ist
+                        var trackedGroup = await _context.Gruppes
+                            .FirstOrDefaultAsync(g => g.Id == targetGroup.Id, _cts?.Token ?? CancellationToken.None);
+                            
+                        if (trackedGroup != null)
+                        {
+                            customer.Gruppe = trackedGroup;
+                            _context.Customers.Update(customer);
+                            assignedCount++;
+                        }
                     }
                 }
 
                 if (assignedCount > 0)
                 {
                     await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-                    AutoAssignMessage = $"Erfolgreich {assignedCount} Kunden in neue Gruppen eingeteilt.";
+                    AutoAssignMessage = $"✅ Erfolgreich {assignedCount} Kunden in neue Gruppen eingeteilt.";
                 }
                 else
                 {
-                    AutoAssignMessage = "Alle Kunden waren bereits in den richtigen Gruppen.";
+                    AutoAssignMessage = "ℹ️ Alle Kunden waren bereits in den richtigen Gruppen.";
                 }
 
                 SafeStateHasChanged();
@@ -339,9 +385,14 @@ namespace WSB_Management.Components.Pages
             catch (ObjectDisposedException) { return; }
             catch (InvalidOperationException) { return; }
             catch (TaskCanceledException) { return; }
+            catch (DbUpdateException ex)
+            {
+                AutoAssignMessage = $"❌ Datenbankfehler bei der automatischen Einteilung: {ex.GetBaseException().Message}";
+                SafeStateHasChanged();
+            }
             catch (Exception ex)
             {
-                AutoAssignMessage = $"Fehler bei der automatischen Einteilung: {ex.Message}";
+                AutoAssignMessage = $"❌ Fehler bei der automatischen Einteilung: {ex.Message}";
                 SafeStateHasChanged();
             }
         }

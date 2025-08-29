@@ -7,7 +7,7 @@ using MySql.EntityFrameworkCore.Metadata;
 namespace WSB_Management.Migrations
 {
     /// <inheritdoc />
-    public partial class InitDB : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -133,6 +133,7 @@ namespace WSB_Management.Migrations
                     Name = table.Column<string>(type: "longtext", nullable: false),
                     Validfrom = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     Validuntil = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    maxPersons = table.Column<int>(type: "int", nullable: false),
                     Vat = table.Column<double>(type: "double", nullable: false)
                 },
                 constraints: table =>
@@ -147,7 +148,8 @@ namespace WSB_Management.Migrations
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
-                    Name = table.Column<string>(type: "longtext", nullable: false)
+                    Name = table.Column<string>(type: "longtext", nullable: false),
+                    MaxTimelap = table.Column<TimeSpan>(type: "time(6)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -334,10 +336,14 @@ namespace WSB_Management.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     Laptime = table.Column<TimeSpan>(type: "time(6)", nullable: false),
-                    BikeId = table.Column<long>(type: "bigint", nullable: false),
+                    BikeId = table.Column<long>(type: "bigint", nullable: true),
                     CustomerId = table.Column<long>(type: "bigint", nullable: false),
                     EventId = table.Column<long>(type: "bigint", nullable: false),
-                    TransponderId = table.Column<long>(type: "bigint", nullable: false)
+                    TransponderId = table.Column<long>(type: "bigint", nullable: true),
+                    ParticipationDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    RegistrationDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    Notes = table.Column<string>(type: "longtext", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -346,8 +352,7 @@ namespace WSB_Management.Migrations
                         name: "FK_CustomerEvents_Bikes_BikeId",
                         column: x => x.BikeId,
                         principalTable: "Bikes",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_CustomerEvents_Events_EventId",
                         column: x => x.EventId,
@@ -358,8 +363,7 @@ namespace WSB_Management.Migrations
                         name: "FK_CustomerEvents_Transponders_TransponderId",
                         column: x => x.TransponderId,
                         principalTable: "Transponders",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 
@@ -394,6 +398,7 @@ namespace WSB_Management.Migrations
                     letzterEinkauf = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     BikeId = table.Column<long>(type: "bigint", nullable: false),
                     TransponderId = table.Column<long>(type: "bigint", nullable: false),
+                    BestTime = table.Column<TimeSpan>(type: "time(6)", nullable: true),
                     S8S = table.Column<string>(type: "longtext", nullable: false),
                     Speeddays = table.Column<string>(type: "longtext", nullable: false),
                     TeamId = table.Column<long>(type: "bigint", nullable: true)
@@ -447,7 +452,7 @@ namespace WSB_Management.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySQL:ValueGenerationStrategy", MySQLValueGenerationStrategy.IdentityColumn),
                     Name = table.Column<string>(type: "longtext", nullable: false),
-                    TeamChefId = table.Column<long>(type: "bigint", nullable: false),
+                    TeamChefId = table.Column<long>(type: "bigint", nullable: true),
                     CupId = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>
@@ -462,8 +467,7 @@ namespace WSB_Management.Migrations
                         name: "FK_Teams_Customers_TeamChefId",
                         column: x => x.TeamChefId,
                         principalTable: "Customers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                 })
                 .Annotation("MySQL:Charset", "utf8mb4");
 

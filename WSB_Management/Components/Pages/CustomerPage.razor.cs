@@ -7,7 +7,7 @@ using WSB_Management.Models;
 
 namespace WSB_Management.Components.Pages
 {
-    public partial class CostumerPage : IDisposable, IAsyncDisposable
+    public partial class CustomerPage : IDisposable, IAsyncDisposable
     {
         private bool _isDisposed;
         private CancellationTokenSource? _cts = new();
@@ -79,6 +79,8 @@ namespace WSB_Management.Components.Pages
                 return customer;
             }
         }
+        
+        private string? Message { get; set; }
         
         // Cache für bessere Performance
         private void InvalidateCustomersCache()
@@ -220,11 +222,7 @@ namespace WSB_Management.Components.Pages
 
 
         public List<Customer> customers { get; set; } = new List<Customer>();
-        private readonly WSBRacingDbContext _context;
-        public CostumerPage(WSBRacingDbContext context)
-        {
-            _context = context;
-        }
+        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
         public async Task SaveCustomerAsync()
         {
             if (_isDisposed) return;
@@ -234,29 +232,16 @@ namespace WSB_Management.Components.Pages
                 // Basic Validation
                 if (string.IsNullOrWhiteSpace(CurrentCustomer?.Contact?.Firstname) && 
                     string.IsNullOrWhiteSpace(CurrentCustomer?.Contact?.Surname))
-                {
-                    // Optional: Add validation message
                     return;
-                }
 
-                // Brand-Referenz korrigieren falls nötig
                 await ValidateAndFixBrandReference();
-
-                // Country-Referenz korrigieren falls nötig
                 ValidateAndFixCountryReference();
-
-                // Gruppe-Referenz korrigieren falls nötig
                 ValidateAndFixGruppeReference();
-
-                // Transponder-Referenz korrigieren falls nötig
                 ValidateAndFixTransponderReference();
-
-                // Bike-Entität für Entity Framework vorbereiten
                 PrepareBikeForSaving();
 
                 var isNew = CurrentCustomer.Id == 0;
                 
-                // Schritt 1: Customer ohne Team-Referenzen speichern
                 if (isNew)
                 {
                     CurrentCustomer.Validfrom = DateTime.UtcNow;
@@ -264,25 +249,83 @@ namespace WSB_Management.Components.Pages
                 }
                 else
                 {
-                    // Prüfen ob die Entität bereits getrackt wird
-                    var tracked = _context.Customers.Local.FirstOrDefault(c => c.Id == CurrentCustomer.Id);
-                    if (tracked != null)
+                    // Existierenden Customer aus DB laden mit allen Includes
+                    var existingCustomer = await _context.Customers
+                        .Include(c => c.Address)
+                        .Include(c => c.Contact)
+                        .Include(c => c.NotfallContact)
+                        .Include(c => c.Bike).ThenInclude(b => b!.Brand)
+                        .Include(c => c.Gruppe)
+                        .Include(c => c.Transponder)
+                        .FirstOrDefaultAsync(c => c.Id == CurrentCustomer.Id, _cts?.Token ?? CancellationToken.None);
+                        
+                    if (existingCustomer == null)
                     {
-                        // Vorhandene getrackte Entität aktualisieren
-                        _context.Entry(tracked).CurrentValues.SetValues(CurrentCustomer);
+                        Message = "Customer nicht gefunden.";
+                        SafeStateHasChanged();
+                        return;
+                    }
+                    
+                    // Manuell alle Properties aktualisieren
+                    existingCustomer.Validfrom = CurrentCustomer.Validfrom;
+                    existingCustomer.BestTime = CurrentCustomer.BestTime;
+                    existingCustomer.Gruppe = CurrentCustomer.Gruppe;
+                    existingCustomer.Transponder = CurrentCustomer.Transponder;
+                    
+                    // Contact aktualisieren
+                    if (existingCustomer.Contact != null && CurrentCustomer.Contact != null)
+                    {
+                        existingCustomer.Contact.Firstname = CurrentCustomer.Contact.Firstname;
+                        existingCustomer.Contact.Surname = CurrentCustomer.Contact.Surname;
+                        existingCustomer.Contact.Phonenumber = CurrentCustomer.Contact.Phonenumber;
+                    }
+                    
+                    // NotfallContact aktualisieren
+                    if (existingCustomer.NotfallContact != null && CurrentCustomer.NotfallContact != null)
+                    {
+                        existingCustomer.NotfallContact.Firstname = CurrentCustomer.NotfallContact.Firstname;
+                        existingCustomer.NotfallContact.Surname = CurrentCustomer.NotfallContact.Surname;
+                        existingCustomer.NotfallContact.Phonenumber = CurrentCustomer.NotfallContact.Phonenumber;
+                    }
+                    
+                    // Address aktualisieren
+                    if (existingCustomer.Address != null && CurrentCustomer.Address != null)
+                    {
+                        existingCustomer.Address.Street = CurrentCustomer.Address.Street;
+                        existingCustomer.Address.Zip = CurrentCustomer.Address.Zip;
+                        existingCustomer.Address.City = CurrentCustomer.Address.City;
+                        existingCustomer.Address.Country = CurrentCustomer.Address.Country;
+                    }
+                    
+                    // Bike aktualisieren
+                    if (CurrentCustomer.Bike != null)
+                    {
+                        if (existingCustomer.Bike == null)
+                        {
+                            existingCustomer.Bike = new Bike();
+                        }
+                        existingCustomer.Bike.Type = CurrentCustomer.Bike.Type;
+                        existingCustomer.Bike.Ccm = CurrentCustomer.Bike.Ccm;
+                        existingCustomer.Bike.Year = CurrentCustomer.Bike.Year;
+                        existingCustomer.Bike.Brand = CurrentCustomer.Bike.Brand;
                     }
                     else
                     {
-                        // Entität anhängen und als geändert markieren
-                        _context.Customers.Attach(CurrentCustomer);
-                        _context.Entry(CurrentCustomer).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+                        existingCustomer.Bike = null!;
                     }
+                    
+                    _context.Customers.Update(existingCustomer);
+                    
+                    // SelectedCustomer auf den getrackten Customer setzen für Team-Updates
+                    SelectedCustomer = existingCustomer;
                 }
 
                 // Customer zuerst speichern, um ID zu erhalten
                 await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
+
+                Message = $"Gespeichert: {CurrentCustomer.Contact?.Firstname} {CurrentCustomer.Contact?.Surname}";
 
                 // Schritt 2: Team-Zuordnungen aktualisieren
                 await UpdateTeamAssignments();

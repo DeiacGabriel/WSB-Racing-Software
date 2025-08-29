@@ -1,6 +1,12 @@
 ﻿@using Microsoft.AspNetCore.Components.Routing
 @using System.Linq
+@using Microsoft.EntityFrameworkCore
+@using WSB_Management.Data
+@using WSB_Management.Models
+@using WSB_Management.Services
 @inject NavigationManager Nav
+@inject WSBRacingDbContext DbContext
+@inject EventService EventService
 @inherits LayoutComponentBase
 @implements IDisposable
 
@@ -8,19 +14,32 @@
     <NavLink href="/customer" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
         <span class="material-symbols-outlined">group</span> Kunden
     </NavLink>
-    <NavLink href="/races" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
-        <span class="material-symbols-outlined">
-            assignment
-        </span> Rennen
-    </NavLink>
+    <Dropdown Class="nav-item dropdown">
+        <DropdownToggleButton Class="@($"dropdown-toggle {(IsEventsActive ? "active" : "")}")">
+            <span class="material-symbols-outlined">assignment</span>
+            <span @onclick="LoadEvents">Rennen</span>
+        </DropdownToggleButton>
+
+        <DropdownMenu>
+            @foreach (var eventItem in EventOptions)
+            {
+                <DropdownItem To="@($"/events/{eventItem.Name}")"
+                              Type="DropdownItemType.Link"
+                              Class="nav-item"
+                              Active="@IsPathActive($"/events/{eventItem.Name}")">
+                    @eventItem.Name
+                </DropdownItem>
+            }
+        </DropdownMenu>
+    </Dropdown>
     <NavLink href="/calendar" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
         <span class="material-symbols-outlined">
             calendar_month
         </span> Kalender
     </NavLink>
-    <NavLink href="/events" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
+    @* <NavLink href="/events" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
         <span class="material-symbols-outlined">tv</span> Events
-    </NavLink>
+    </NavLink> *@
     <NavLink href="/rankings" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
         <span class="material-symbols-outlined">hourglass_empty</span> Rankings
     </NavLink>
@@ -55,6 +74,10 @@
 </div>
 
 @code {
+    // NavMenu(WSBRacingDbContext context)
+    // {
+    //     _context = context;
+    // }
     private record MgmtItem(string Label, string Path);
 
     private readonly MgmtItem[] MgmtOptions = new[] {
@@ -65,11 +88,44 @@
         new MgmtItem("Marken",      "/management/brands"),
     };
 
+    private List<Event> EventOptions = new();
+
     private bool IsMgmtActive => new Uri(Nav.Uri).AbsolutePath
         .StartsWith("/management", StringComparison.OrdinalIgnoreCase);
 
+    private bool IsEventsActive => new Uri(Nav.Uri).AbsolutePath
+        .StartsWith("/events", StringComparison.OrdinalIgnoreCase);
+
     private bool IsPathActive(string path) =>
         new Uri(Nav.Uri).AbsolutePath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Nav.LocationChanged += HandleLocationChanged;
+        EventService.EventsChanged += OnEventsChanged;
+        await LoadEvents();
+    }
+
+    private async Task LoadEvents()
+    {
+        try
+        {
+            EventOptions = await DbContext.Events
+                .AsNoTracking()
+                .OrderBy(e => e.Validfrom)
+                .ToListAsync();
+        }
+        catch (Exception)
+        {
+            EventOptions = new List<Event>();
+        }
+    }
+
+    private async void OnEventsChanged()
+    {
+        await LoadEvents();
+        await InvokeAsync(StateHasChanged);
+    }
 
     protected override void OnInitialized()
     {
@@ -78,12 +134,12 @@
 
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        // Damit Active-Styles sofort updaten
         InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
     {
         Nav.LocationChanged -= HandleLocationChanged;
+        EventService.EventsChanged -= OnEventsChanged;
     }
 }
