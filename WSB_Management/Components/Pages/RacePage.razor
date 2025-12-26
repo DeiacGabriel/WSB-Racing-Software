@@ -6,18 +6,18 @@
 @using Microsoft.EntityFrameworkCore
 @using WSB_Management.Data
 
-@page "/events/{EventName}"
+@page "/events/{EventId:long}"
 @rendermode InteractiveServer
 @layout MainLayout
 
-<PageTitle>WSB-Sport - @EventName</PageTitle>
+<PageTitle>WSB-Sport - @CurrentEvent?.Name</PageTitle>
 <HeadContent>
     <link rel="stylesheet" href="~/race.css" />
 </HeadContent>
 
 <div class="group-div">
     <div class="race-liste-header">
-        <p class="race-titel">@EventName - Event Management</p>
+        <p class="race-titel">@CurrentEvent?.Name - Event Management</p>
         <div class="header-btn">
             <button class="excel-btn">
                 <span class="material-symbols-outlined">
@@ -187,11 +187,11 @@
                         </thead>
                         <tbody>
                             @{
-                                var totalBikes = _eventParticipations.Count(p => p.Customer?.Bike?.Brand != null);
+                                var totalBikes = _eventParticipations.Count(p => p.Customer?.Bike?.BikeType?.Brand != null);
                             }
                             @foreach (var bikeGroup in _eventParticipations
-                                .Where(p => p.Customer?.Bike?.Brand != null)
-                                .GroupBy(p => p.Customer.Bike.Brand.Name)
+                                .Where(p => p.Customer?.Bike?.BikeType?.Brand != null)
+                                .GroupBy(p => p.Customer?.Bike?.BikeType?.Brand?.Name ?? string.Empty)
                                 .OrderByDescending(g => g.Count()))
                             {
                                 var count = bikeGroup.Count();
@@ -288,9 +288,9 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="grid-scroll-wrapper">
-                        <Grid TItem="CostumerEvent"
-                              @ref="grid"
-                              Class="table table-hover table-striped table-sm mb-0"
+                <Grid TItem="CostumerEvent"
+                    @ref="grid"
+                    Class="table table-hover table-bordered table-striped table-sm grid-compact"
                               AllowSorting="true"
                               AllowFiltering="true"
                               AllowSelection="true"
@@ -367,14 +367,14 @@
                                         <span class="badge @levelClass">@context.Customer.Gruppe.Name</span>
                                     }
                                 </GridColumn>
-                                <GridColumn TItem="CostumerEvent" HeaderText="Motorrad" PropertyName="Customer.Bike.Brand.Name">
+                                <GridColumn TItem="CostumerEvent" HeaderText="Motorrad" PropertyName="Customer.Bike.BikeType.Brand.Name">
                                     @if (context.Customer?.Bike != null)
                                     {
                                         <div>
-                                            <div class="fw-medium">@context.Customer?.Bike?.Brand?.Name</div>
-                                            @if (!string.IsNullOrEmpty(context.Customer?.Bike?.Type))
+                                            <div class="fw-medium">@context.Customer?.Bike?.BikeType?.Brand?.Name</div>
+                                            @if (!string.IsNullOrEmpty(context.Customer?.Bike?.BikeType?.Name))
                                             {
-                                                <small class="text-muted">@context.Customer?.Bike?.Type</small>
+                                                <small class="text-muted">@context.Customer?.Bike?.BikeType?.Name</small>
                                             }
                                         </div>
                                     }
@@ -419,9 +419,17 @@
                         </div>
 
                         <div class="bike-wrapper">
-                            <label>Bike</label>
-                            <InputSelectBrand @bind-Value="@CurrentParticipation.Customer!.Bike!.Brand" Brands="@Brands" />
-                            <input class="form-control" type="text" @bind="CurrentParticipation.Customer!.Bike!.Type" placeholder="Modell (z. B. Panigale V4)" />
+                            <label>Bike Type</label>
+                            <p class="form-control-plaintext">
+                                @if (CurrentParticipation.Customer?.Bike?.BikeType != null)
+                                {
+                                    <span>@CurrentParticipation.Customer.Bike.BikeType.Brand?.Name @CurrentParticipation.Customer.Bike.BikeType.Name</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Kein Bike-Typ zugewiesen</span>
+                                }
+                            </p>
                         </div>
 
                         <div class="flag-select">

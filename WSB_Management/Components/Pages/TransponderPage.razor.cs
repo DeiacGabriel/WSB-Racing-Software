@@ -78,7 +78,7 @@ namespace WSB_Management.Components.Pages
             transponders = new List<Transponder>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
         }
 
-        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
+        [Inject] public IDbContextFactory<WSBRacingDbContext> _contextFactory { get; set; } = default!;
 
         public async Task SaveTransponder()
         {
@@ -96,28 +96,17 @@ namespace WSB_Management.Components.Pages
 
                 var isNew = CurrentTransponder.Id == 0;
                 
+                await using var context = await _contextFactory.CreateDbContextAsync();
                 if (isNew)
                 {
-                    _context.Transponders.Add(CurrentTransponder);
+                    context.Transponders.Add(CurrentTransponder);
                 }
                 else
                 {
-                    // Prüfen ob die Entität bereits getrackt wird
-                    var tracked = _context.Transponders.Local.FirstOrDefault(t => t.Id == CurrentTransponder.Id);
-                    if (tracked != null)
-                    {
-                        // Vorhandene getrackte Entität aktualisieren
-                        _context.Entry(tracked).CurrentValues.SetValues(CurrentTransponder);
-                    }
-                    else
-                    {
-                        // Entität anhängen und als geändert markieren
-                        _context.Transponders.Attach(CurrentTransponder);
-                        _context.Entry(CurrentTransponder).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-                    }
+                    context.Transponders.Update(CurrentTransponder);
                 }
 
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
@@ -161,7 +150,8 @@ namespace WSB_Management.Components.Pages
             {
                 if (transponders is null || transponders.Count == 0)
                 {
-                    transponders = await _context.Transponders
+                    await using var context = await _contextFactory.CreateDbContextAsync();
+                    transponders = await context.Transponders
                         .AsNoTracking()
                         .OrderBy(t => t.Id)
                         .ToListAsync(_cts?.Token ?? CancellationToken.None);
@@ -194,11 +184,12 @@ namespace WSB_Management.Components.Pages
 
             try
             {
-                var transponder = _context.Transponders.FirstOrDefault(t => t.Id == transponderId);
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var transponder = await context.Transponders.FirstOrDefaultAsync(t => t.Id == transponderId, _cts?.Token ?? CancellationToken.None);
                 if (transponder == null) return;
 
-                _context.Transponders.Remove(transponder);
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                context.Transponders.Remove(transponder);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 

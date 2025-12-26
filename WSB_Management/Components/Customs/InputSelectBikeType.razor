@@ -1,0 +1,89 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@using WSB_Management.Models
+@typeparam TItem
+@inherits InputBase<TItem?>
+
+<select class="@CssClass" 
+        value="@CurrentValueAsString" 
+        @onchange="OnChangeHandler"
+        disabled="@disabled">
+    <option value="">– Typ wählen –</option>
+    @if (Items != null)
+    {
+        @foreach (var item in Items)
+        {
+            <option value="@GetValueString(item)">@GetDisplayText(item)</option>
+        }
+    }
+</select>
+
+@code {
+    [Parameter] public IEnumerable<TItem>? Items { get; set; }
+    [Parameter] public Func<TItem, string>? TextSelector { get; set; }
+    [Parameter] public bool disabled { get; set; }
+
+    protected override string? FormatValueAsString(TItem? value)
+    {
+        if (value == null) return string.Empty;
+        return GetValueString(value);
+    }
+
+    private string GetValueString(TItem item)
+    {
+        if (item is BikeType bikeType)
+        {
+            return bikeType.Id.ToString();
+        }
+        return item?.ToString() ?? string.Empty;
+    }
+
+    private string GetDisplayText(TItem item)
+    {
+        if (TextSelector != null)
+        {
+            return TextSelector(item);
+        }
+
+        if (item is BikeType bikeType)
+        {
+            return $"{bikeType.Brand?.Name} {bikeType.Name} ({bikeType.Klasse?.Bezeichnung})";
+        }
+
+        return item?.ToString() ?? string.Empty;
+    }
+
+    private void OnChangeHandler(ChangeEventArgs e)
+    {
+        var selectedValue = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(selectedValue))
+        {
+            CurrentValue = default;
+        }
+        else if (Items != null)
+        {
+            CurrentValue = Items.FirstOrDefault(x => GetValueString(x) == selectedValue);
+        }
+    }
+
+    protected override bool TryParseValueFromString(string? value, out TItem? result, out string? validationErrorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            result = default;
+            validationErrorMessage = null;
+            return true;
+        }
+
+        if (Items != null)
+        {
+            result = Items.FirstOrDefault(x => GetValueString(x) == value);
+            validationErrorMessage = null;
+            return true;
+        }
+
+        result = default;
+        validationErrorMessage = "Invalid selection";
+        return false;
+    }
+}

@@ -102,7 +102,7 @@ namespace WSB_Management.Components.Pages
             gruppen = new List<Gruppe>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
         }
 
-        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
+        [Inject] public IDbContextFactory<WSBRacingDbContext> _contextFactory { get; set; } = default!;
 
         public async Task SaveGruppe()
         {
@@ -120,20 +120,19 @@ namespace WSB_Management.Components.Pages
 
                 var isNew = CurrentGruppe.Id == 0;
                 
+                await using var context = await _contextFactory.CreateDbContextAsync();
                 if (isNew)
                 {
-                    // Neue Gruppe erstellen
                     var newGruppe = new Gruppe
                     {
                         Name = CurrentGruppe.Name,
                         MaxTimelap = CurrentGruppe.MaxTimelap
                     };
-                    _context.Gruppes.Add(newGruppe);
+                    context.Gruppes.Add(newGruppe);
                 }
                 else
                 {
-                    // Existierende Gruppe aktualisieren
-                    var existingGruppe = await _context.Gruppes
+                    var existingGruppe = await context.Gruppes
                         .FirstOrDefaultAsync(g => g.Id == CurrentGruppe.Id, _cts?.Token ?? CancellationToken.None);
                         
                     if (existingGruppe == null)
@@ -143,14 +142,13 @@ namespace WSB_Management.Components.Pages
                         return;
                     }
                     
-                    // Eigenschaften aktualisieren
                     existingGruppe.Name = CurrentGruppe.Name;
                     existingGruppe.MaxTimelap = CurrentGruppe.MaxTimelap;
                     
-                    _context.Gruppes.Update(existingGruppe);
+                    context.Gruppes.Update(existingGruppe);
                 }
 
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
@@ -200,7 +198,8 @@ namespace WSB_Management.Components.Pages
             {
                 if (gruppen is null || gruppen.Count == 0)
                 {
-                    gruppen = await _context.Gruppes
+                    await using var context = await _contextFactory.CreateDbContextAsync();
+                    gruppen = await context.Gruppes
                         .AsNoTracking()
                         .OrderBy(g => g.Id)
                         .ToListAsync(_cts?.Token ?? CancellationToken.None);
@@ -246,7 +245,8 @@ namespace WSB_Management.Components.Pages
 
             try
             {
-                var gruppe = await _context.Gruppes
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var gruppe = await context.Gruppes
                     .FirstOrDefaultAsync(g => g.Id == gruppeId, _cts?.Token ?? CancellationToken.None);
                     
                 if (gruppe == null) 
@@ -256,8 +256,7 @@ namespace WSB_Management.Components.Pages
                     return;
                 }
 
-                // Prüfen ob Kunden dieser Gruppe zugeordnet sind
-                var customersInGroup = await _context.Customers
+                var customersInGroup = await context.Customers
                     .Where(c => c.Gruppe != null && c.Gruppe.Id == gruppeId)
                     .CountAsync(_cts?.Token ?? CancellationToken.None);
 
@@ -268,8 +267,8 @@ namespace WSB_Management.Components.Pages
                     return;
                 }
 
-                _context.Gruppes.Remove(gruppe);
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                context.Gruppes.Remove(gruppe);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
@@ -320,8 +319,8 @@ namespace WSB_Management.Components.Pages
                 AutoAssignMessage = "Starte automatische Gruppeneinteilung...";
                 SafeStateHasChanged();
                 
-                // Alle Kunden mit bester Zeit laden
-                var customers = await _context.Customers
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var customers = await context.Customers
                     .Include(c => c.Gruppe)
                     .Where(c => c.BestTime.HasValue)
                     .OrderBy(c => c.BestTime)
@@ -329,8 +328,7 @@ namespace WSB_Management.Components.Pages
 
                 if (_isDisposed) return;
 
-                // Alle Gruppen mit MaxTimelap laden, nach Zeit sortiert
-                var sortedGroups = await _context.Gruppes
+                var sortedGroups = await context.Gruppes
                     .Where(g => g.MaxTimelap.HasValue)
                     .OrderBy(g => g.MaxTimelap)
                     .ToListAsync(_cts?.Token ?? CancellationToken.None);
@@ -357,14 +355,13 @@ namespace WSB_Management.Components.Pages
                     
                     if (targetGroup != null && (customer.Gruppe == null || customer.Gruppe.Id != targetGroup.Id))
                     {
-                        // Gruppe korrekt zuweisen - sicherstellen dass die Gruppe getrackt ist
-                        var trackedGroup = await _context.Gruppes
+                        var trackedGroup = await context.Gruppes
                             .FirstOrDefaultAsync(g => g.Id == targetGroup.Id, _cts?.Token ?? CancellationToken.None);
                             
                         if (trackedGroup != null)
                         {
                             customer.Gruppe = trackedGroup;
-                            _context.Customers.Update(customer);
+                            context.Customers.Update(customer);
                             assignedCount++;
                         }
                     }
@@ -372,7 +369,7 @@ namespace WSB_Management.Components.Pages
 
                 if (assignedCount > 0)
                 {
-                    await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                    await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
                     AutoAssignMessage = $"✅ Erfolgreich {assignedCount} Kunden in neue Gruppen eingeteilt.";
                 }
                 else

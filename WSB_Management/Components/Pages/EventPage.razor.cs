@@ -79,7 +79,7 @@ namespace WSB_Management.Components.Pages
             events = new List<Event>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
         }
 
-        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
+        [Inject] public IDbContextFactory<WSBRacingDbContext> _contextFactory { get; set; } = default!;
         [Inject] public EventService EventService { get; set; } = default!;
 
         public async Task SaveEvent()
@@ -98,28 +98,17 @@ namespace WSB_Management.Components.Pages
 
                 var isNew = CurrentEvent.Id == 0;
                 
+                await using var context = await _contextFactory.CreateDbContextAsync();
                 if (isNew)
                 {
-                    _context.Events.Add(CurrentEvent);
+                    context.Events.Add(CurrentEvent);
                 }
                 else
                 {
-                    // Prüfen ob die Entität bereits getrackt wird
-                    var tracked = _context.Events.Local.FirstOrDefault(e => e.Id == CurrentEvent.Id);
-                    if (tracked != null)
-                    {
-                        // Vorhandene getrackte Entität aktualisieren
-                        _context.Entry(tracked).CurrentValues.SetValues(CurrentEvent);
-                    }
-                    else
-                    {
-                        // Entität anhängen und als geändert markieren
-                        _context.Events.Attach(CurrentEvent);
-                        _context.Entry(CurrentEvent).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-                    }
+                    context.Events.Update(CurrentEvent);
                 }
 
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
@@ -166,7 +155,8 @@ namespace WSB_Management.Components.Pages
             {
                 if (events is null || events.Count == 0)
                 {
-                    events = await _context.Events
+                    await using var context = await _contextFactory.CreateDbContextAsync();
+                    events = await context.Events
                         .AsNoTracking()
                         .OrderBy(e => e.Id)
                         .ToListAsync(_cts?.Token ?? CancellationToken.None);
@@ -199,11 +189,12 @@ namespace WSB_Management.Components.Pages
 
             try
             {
-                var eventItem = _context.Events.FirstOrDefault(e => e.Id == eventId);
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var eventItem = await context.Events.FirstOrDefaultAsync(e => e.Id == eventId, _cts?.Token ?? CancellationToken.None);
                 if (eventItem == null) return;
 
-                _context.Events.Remove(eventItem);
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                context.Events.Remove(eventItem);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 

@@ -1,0 +1,105 @@
+/* Types Page Container */
+.types-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding: 1rem;
+    height: calc(100vh - 4rem);
+}
+
+.klasse-section, .type-section {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e50000;
+}
+
+.section-titel {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.add-btn {
+    background-color: #e50000;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.add-btn:hover {
+    background-color: #c00000;
+}
+
+.grid-scroll-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+}
+
+.details-card {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.details-card .card-header {
+    background-color: #f5f5f5;
+    padding: 0.75rem;
+    border-bottom: 1px solid #ddd;
+}
+
+.details-card .card-body {
+    padding: 0.75rem;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.tabel-del-btn {
+    color: #e50000;
+}
+
+.tabel-del-btn:hover {
+    background-color: #ffe5e5;
+}
+
+.grid-compact {
+    font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .types-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+    }
+}

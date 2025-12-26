@@ -7,6 +7,6 @@ namespace WSB_Management.Models;
 public class Transponder
 {
     public long Id { get; set; }
-    public string Bezeichung { get; set; }
-    public string Number { get; set; }
+    public string Bezeichung { get; set; } = string.Empty;
+    public string Number { get; set; } = string.Empty;
 }

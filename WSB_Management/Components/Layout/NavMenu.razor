@@ -17,19 +17,23 @@
     <Dropdown Class="nav-item dropdown">
         <DropdownToggleButton Class="@($"dropdown-toggle {(IsEventsActive ? "active" : "")}")">
             <span class="material-symbols-outlined">assignment</span>
-            <span @onclick="LoadEvents">Rennen</span>
+            <span>Rennen</span>
         </DropdownToggleButton>
 
         <DropdownMenu>
             @foreach (var eventItem in EventOptions)
             {
-                <DropdownItem To="@($"/events/{eventItem.Name}")"
+                <DropdownItem To="@($"/events/{eventItem.Id}")"
                               Type="DropdownItemType.Link"
                               Class="nav-item"
-                              Active="@IsPathActive($"/events/{eventItem.Name}")">
+                              Active="@IsPathActive($"/events/{eventItem.Id}")">
                     @eventItem.Name
                 </DropdownItem>
             }
+            <DropdownDivider></DropdownDivider>
+            <DropdownItem Type="DropdownItemType.Button" @onclick="LoadEvents">
+                <span class="material-symbols-outlined">refresh</span> Reload
+            </DropdownItem>
         </DropdownMenu>
     </Dropdown>
     <NavLink href="/calendar" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
@@ -86,6 +90,7 @@
         new MgmtItem("Transponder", "/management/transponder"),
         new MgmtItem("Länder",      "/management/countries"),
         new MgmtItem("Marken",      "/management/brands"),
+        new MgmtItem("Motorrad Typen", "/management/types"),
     };
 
     private List<Event> EventOptions = new();

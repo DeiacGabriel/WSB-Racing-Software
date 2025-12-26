@@ -19,7 +19,7 @@
     [Parameter] public IEnumerable<Transponder>? Items { get; set; }
     [Parameter] public Func<Transponder, string>? TextSelector { get; set; }
 
-    protected override bool TryParseValueFromString(string? value, out Transponder? result, out string? validationErrorMessage)
+    protected override bool TryParseValueFromString(string? value, out Transponder? result, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out string? validationErrorMessage)
     {
         result = null;
         validationErrorMessage = null;

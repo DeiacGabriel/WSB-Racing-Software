@@ -10,8 +10,8 @@ namespace WSB_Management.Components.Pages;
 public partial class RacePage : ComponentBase
 {
 	#region DI / Parameter
-	[Inject] public WSBRacingDbContext Db { get; set; } = default!;
-	[Parameter] public string? EventName { get; set; }
+	[Inject] public IDbContextFactory<WSBRacingDbContext> DbFactory { get; set; } = default!;
+	[Parameter] public long EventId { get; set; }
 	#endregion
 
 	#region Zustandsfelder
@@ -122,7 +122,7 @@ public partial class RacePage : ComponentBase
 		if (_isLoading) return;
 		
 		// Event wechseln / initial laden
-		if (!_initialLoadDone || !string.Equals(CurrentEvent?.Name, EventName, StringComparison.OrdinalIgnoreCase))
+		if (!_initialLoadDone || CurrentEvent?.Id != EventId)
 		{
 			_isLoading = true;
 			try
@@ -143,30 +143,29 @@ public partial class RacePage : ComponentBase
 	{
 		try
 		{
-			// Stammdaten sequenziell laden um Threading-Probleme zu vermeiden
-			Countries = await Db.Countries.AsNoTracking().ToListAsync();
-			Brands = await Db.Brands.AsNoTracking().ToListAsync();
-			Transponders = await Db.Transponders.AsNoTracking().ToListAsync();
-			Gruppen = await Db.Gruppes.AsNoTracking().ToListAsync();
+			await using var db = await DbFactory.CreateDbContextAsync();
+			Countries = await db.Countries.AsNoTracking().ToListAsync();
+			Brands = await db.Brands.AsNoTracking().ToListAsync();
+			Transponders = await db.Transponders.AsNoTracking().ToListAsync();
+			Gruppen = await db.Gruppes.AsNoTracking().ToListAsync();
 			
-			AllCustomers = await Db.Customers
+			AllCustomers = await db.Customers
 				.Include(c => c.Contact)
 				.Include(c => c.Address).ThenInclude(a => a.Country)
-				.Include(c => c.Bike).ThenInclude(b => b.Brand)
+				.Include(c => c.Bike).ThenInclude(b => b.BikeType).ThenInclude(bt => bt.Brand)
+				.Include(c => c.Bike).ThenInclude(b => b.BikeType).ThenInclude(bt => bt.Klasse)
 				.Include(c => c.Gruppe)
 				.AsNoTracking()
 				.ToListAsync();
 
-			if (!string.IsNullOrWhiteSpace(EventName))
+			if (EventId > 0)
 			{
-				// Event in separatem Aufruf laden
-				var eventEntity = await Db.Events
+				var eventEntity = await db.Events
 					.AsNoTracking()
-					.FirstOrDefaultAsync(e => e.Name == EventName);
+					.FirstOrDefaultAsync(e => e.Id == EventId);
 				
 				CurrentEvent = eventEntity;
 				
-				// Participations separat laden nachdem Event gesetzt wurde
 				if (eventEntity != null)
 				{
 					await LoadParticipationsAsync();
@@ -191,10 +190,12 @@ public partial class RacePage : ComponentBase
 		
 		try
 		{
-			_eventParticipations = await Db.CustomerEvents
+			await using var db = await DbFactory.CreateDbContextAsync();
+			_eventParticipations = await db.CustomerEvents
 				.Include(p => p.Customer).ThenInclude(c => c.Contact)
 				.Include(p => p.Customer).ThenInclude(c => c.Address).ThenInclude(a => a.Country)
-				.Include(p => p.Customer).ThenInclude(c => c.Bike).ThenInclude(b => b.Brand)
+				.Include(p => p.Customer).ThenInclude(c => c.Bike).ThenInclude(b => b.BikeType).ThenInclude(bt => bt.Brand)
+				.Include(p => p.Customer).ThenInclude(c => c.Bike).ThenInclude(b => b.BikeType).ThenInclude(bt => bt.Klasse)
 				.Include(p => p.Customer).ThenInclude(c => c.Gruppe)
 				.Where(p => p.Event.Id == CurrentEvent.Id)
 				.AsNoTracking()
@@ -229,7 +230,7 @@ public partial class RacePage : ComponentBase
 		participation.Customer.Contact ??= new Contact();
 		participation.Customer.Address ??= new Address();
 		participation.Customer.Bike ??= new Bike();
-		participation.Customer.Bike.Brand ??= Brands.FirstOrDefault() ?? new Brand();
+		// BikeType is optional, no need to set a default
 		
 		if (participation.ParticipationDate == default)
 		{
@@ -301,26 +302,25 @@ public partial class RacePage : ComponentBase
 
 		try
 		{
-			// Existiert Kunde im Kontext? (falls aus DropDown gewählt)
+			await using var db = await DbFactory.CreateDbContextAsync();
 			if (CurrentParticipation.Customer.Id > 0)
 			{
-				var tracked = await Db.Customers.FindAsync(CurrentParticipation.Customer.Id);
+				var tracked = await db.Customers.FindAsync(CurrentParticipation.Customer.Id);
 				if (tracked != null) CurrentParticipation.Customer = tracked;
 			}
 
-			// Event sicherstellen
 			CurrentParticipation.Event = CurrentEvent;
 
 			if (CurrentParticipation.Id == 0)
 			{
-				Db.CustomerEvents.Add(CurrentParticipation);
+				db.CustomerEvents.Add(CurrentParticipation);
 			}
 			else
 			{
-				Db.CustomerEvents.Update(CurrentParticipation);
+				db.CustomerEvents.Update(CurrentParticipation);
 			}
 
-			await Db.SaveChangesAsync();
+			await db.SaveChangesAsync();
 			Message = "Teilnahme gespeichert";
 			SelectedParticipation = null;
 			NewParticipation = new CostumerEvent();
@@ -341,11 +341,12 @@ public partial class RacePage : ComponentBase
 	{
 		try
 		{
-			var entity = await Db.CustomerEvents.FindAsync(id);
+			await using var db = await DbFactory.CreateDbContextAsync();
+			var entity = await db.CustomerEvents.FindAsync(id);
 			if (entity != null)
 			{
-				Db.CustomerEvents.Remove(entity);
-				await Db.SaveChangesAsync();
+				db.CustomerEvents.Remove(entity);
+				await db.SaveChangesAsync();
 				Message = "Teilnahme gelöscht";
 				await LoadParticipationsAsync();
 			}
@@ -366,7 +367,7 @@ public partial class RacePage : ComponentBase
 		customer.Contact ??= new Contact();
 		customer.Address ??= new Address();
 		customer.Bike ??= new Bike();
-		customer.Bike.Brand ??= Brands.FirstOrDefault() ?? new Brand();
+		// BikeType is optional, no need to set a default
 	}
 	#endregion
 }

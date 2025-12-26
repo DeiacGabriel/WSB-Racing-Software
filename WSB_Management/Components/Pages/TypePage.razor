@@ -1,0 +1,188 @@
+@using WSB_Management.Components.Customs
+@using WSB_Management.Components.Layout
+@using System.ComponentModel.DataAnnotations
+@using WSB_Management.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+@page "/management/types"
+@rendermode InteractiveServer
+@layout MainLayout
+
+<PageTitle>WSB-Sport - Motorrad Typen</PageTitle>
+<HeadContent>
+    <link rel="stylesheet" href="@Assets["types.css"]" />
+</HeadContent>
+
+<div class="types-container">
+    <!-- Klassen Section -->
+    <div class="klasse-section">
+        <div class="section-header">
+            <p class="section-titel">Klassen</p>
+            <button class="add-btn" @onclick="AddNewKlasse">
+                <span class="material-symbols-outlined">add</span>
+            </button>
+        </div>
+
+        <div class="grid-scroll-wrapper">
+            <Grid TItem="Klasse"
+                  @ref="klasseGrid"
+                  Class="table table-hover table-bordered table-striped table-sm grid-compact"
+                  AllowSorting="true"
+                  AllowFiltering="true"
+                  AllowSelection="true"
+                  Responsive="true"
+                  AllowPaging="false"
+                  DataProvider="@KlasseDataProvider"
+                  RowKeySelector="k => k.Id"
+                  SelectionMode="GridSelectionMode.Single"
+                  Style="height:20rem;"
+                  SelectedItemsChanged="OnKlasseSelectedItemsChanged">
+
+                <GridColumns>
+                    <GridColumn TItem="Klasse" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id"
+                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                        @context.Id
+                    </GridColumn>
+
+                    <GridColumn TItem="Klasse" HeaderText="Bezeichnung" PropertyName="Bezeichnung" SortKeySelector="x => x.Bezeichnung"
+                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                        @context.Bezeichnung
+                    </GridColumn>
+
+                    <GridColumn TItem="Klasse" HeaderText="Aktionen" Filterable="false" Sortable="false"
+                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                        <button class="icon-btn tabel-del-btn"
+                                @onclick="() => DeleteKlasseAsync(context.Id)"
+                                @onclick:stopPropagation="true"
+                                title="Löschen">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </GridColumn>
+                </GridColumns>
+            </Grid>
+        </div>
+
+        <div class="card details-card mt-2">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span class="fw-semibold">Klasse bearbeiten</span>
+                <Button Color="ButtonColor.Danger" Size="ButtonSize.Small" @onclick="SaveKlasseAsync">Speichern</Button>
+            </div>
+
+            <div class="card-body" style="padding: 8px;">
+                <div class="row g-2">
+                    <div class="col-md-12">
+                        <label class="form-label">Bezeichnung</label>
+                        <input class="form-control" type="text" @bind="CurrentKlasse.Bezeichnung" placeholder="z.B. 600, 750, Boxer, GP" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(KlasseMessage))
+                    {
+                        <div class="col-12">
+                            <small class="text-muted" style="margin:0;">@KlasseMessage</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bike Types Section -->
+    <div class="type-section">
+        <div class="section-header">
+            <p class="section-titel">Motorrad Typen</p>
+            <button class="add-btn" @onclick="AddNewBikeType">
+                <span class="material-symbols-outlined">add</span>
+            </button>
+        </div>
+
+        <div class="grid-scroll-wrapper">
+            <Grid TItem="BikeType"
+                  @ref="bikeTypeGrid"
+                  Class="table table-hover table-bordered table-striped table-sm grid-compact"
+                  AllowSorting="true"
+                  AllowFiltering="true"
+                  AllowSelection="true"
+                  Responsive="true"
+                  AllowPaging="false"
+                  DataProvider="@BikeTypeDataProvider"
+                  RowKeySelector="bt => bt.Id"
+                  SelectionMode="GridSelectionMode.Single"
+                  Style="height:20rem;"
+                  SelectedItemsChanged="OnBikeTypeSelectedItemsChanged">
+
+                <GridColumns>
+                    <GridColumn TItem="BikeType" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id"
+                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                        @context.Id
+                    </GridColumn>
+
+                    <GridColumn TItem="BikeType" HeaderText="Marke" PropertyName="Brand.Name" SortKeySelector="x => x.Brand!.Name"
+                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                        @context.Brand?.Name
+                    </GridColumn>
+
+                    <GridColumn TItem="BikeType" HeaderText="Typ Name" PropertyName="Name" SortKeySelector="x => x.Name"
+                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                        @context.Name
+                    </GridColumn>
+
+                    <GridColumn TItem="BikeType" HeaderText="Klasse" PropertyName="Klasse.Bezeichnung" SortKeySelector="x => x.Klasse!.Bezeichnung"
+                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                        @context.Klasse?.Bezeichnung
+                    </GridColumn>
+
+                    <GridColumn TItem="BikeType" HeaderText="Aktionen" Filterable="false" Sortable="false"
+                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
+                        <button class="icon-btn tabel-del-btn"
+                                @onclick="() => DeleteBikeTypeAsync(context.Id)"
+                                @onclick:stopPropagation="true"
+                                title="Löschen">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </GridColumn>
+                </GridColumns>
+            </Grid>
+        </div>
+
+        <div class="card details-card mt-2">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span class="fw-semibold">Motorrad Typ bearbeiten</span>
+                <Button Color="ButtonColor.Danger" Size="ButtonSize.Small" @onclick="SaveBikeTypeAsync">Speichern</Button>
+            </div>
+
+            <div class="card-body" style="padding: 8px;">
+                <div class="row g-2">
+                    <div class="col-md-12">
+                        <label class="form-label">Marke</label>
+                        <InputSelectBrand @bind-Value="CurrentBikeTypeBrand"
+                                         Items="brands"
+                                         class="form-select" />
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label">Typ Name</label>
+                        <input class="form-control" type="text" @bind="CurrentBikeType.Name" placeholder="z.B. R6, GS 1200" />
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label">Klasse</label>
+                        <select class="form-select" @bind="CurrentBikeTypeKlasseId">
+                            <option value="0">– Klasse wählen –</option>
+                            @foreach (var klasse in klassen)
+                            {
+                                <option value="@klasse.Id">@klasse.Bezeichnung</option>
+                            }
+                        </select>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(BikeTypeMessage))
+                    {
+                        <div class="col-12">
+                            <small class="text-muted" style="margin:0;">@BikeTypeMessage</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

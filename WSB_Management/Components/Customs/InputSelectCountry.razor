@@ -19,7 +19,7 @@
     [Parameter] public IEnumerable<Country>? Items { get; set; }
     [Parameter] public Func<Country, string>? TextSelector { get; set; }
 
-    protected override bool TryParseValueFromString(string? value, out Country? result, out string? validationErrorMessage)
+    protected override bool TryParseValueFromString(string? value, out Country? result, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out string? validationErrorMessage)
     {
         result = null;
         validationErrorMessage = null;

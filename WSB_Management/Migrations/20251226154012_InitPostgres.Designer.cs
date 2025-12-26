@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using WSB_Management.Data;
@@ -11,9 +12,11 @@ using WSB_Management.Data;
 namespace WSB_Management.Migrations
 {
     [DbContext(typeof(WSBRacingDbContext))]
-    partial class WSBRacingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251226154012_InitPostgres")]
+    partial class InitPostgres
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -137,7 +140,7 @@ namespace WSB_Management.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<long?>("CountryId")
+                    b.Property<long>("CountryId")
                         .HasColumnType("bigint");
 
                     b.Property<string>("Street")
@@ -163,41 +166,25 @@ namespace WSB_Management.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<long?>("BikeTypeId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BikeTypeId");
-
-                    b.ToTable("Bikes");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.BikeType", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
                     b.Property<long>("BrandId")
                         .HasColumnType("bigint");
 
-                    b.Property<long>("KlasseId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Name")
+                    b.Property<string>("Ccm")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
                     b.HasIndex("BrandId");
 
-                    b.HasIndex("KlasseId");
-
-                    b.ToTable("BikeTypes");
+                    b.ToTable("Bikes");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Brand", b =>
@@ -266,10 +253,10 @@ namespace WSB_Management.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("ParticipationDate")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("RegistrationDate")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -350,7 +337,7 @@ namespace WSB_Management.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("Birthdate")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("ContactId")
                         .HasColumnType("bigint");
@@ -369,7 +356,7 @@ namespace WSB_Management.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("LastGuthabenAdd")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<double>("LastGuthabenAddNumber")
                         .HasColumnType("double precision");
@@ -425,16 +412,16 @@ namespace WSB_Management.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("Validfrom")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("VerzichtOk")
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("letzteBuchung")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("letzterEinkauf")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -468,10 +455,10 @@ namespace WSB_Management.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("Validfrom")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("Validuntil")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<double>("Vat")
                         .HasColumnType("double precision");
@@ -502,23 +489,6 @@ namespace WSB_Management.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Gruppes");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.Klasse", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Bezeichnung")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Klasses");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Personal", b =>
@@ -743,21 +713,14 @@ namespace WSB_Management.Migrations
                 {
                     b.HasOne("WSB_Management.Models.Country", "Country")
                         .WithMany()
-                        .HasForeignKey("CountryId");
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Country");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Bike", b =>
-                {
-                    b.HasOne("WSB_Management.Models.BikeType", "BikeType")
-                        .WithMany("Bikes")
-                        .HasForeignKey("BikeTypeId");
-
-                    b.Navigation("BikeType");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.BikeType", b =>
                 {
                     b.HasOne("WSB_Management.Models.Brand", "Brand")
                         .WithMany()
@@ -765,15 +728,7 @@ namespace WSB_Management.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("WSB_Management.Models.Klasse", "Klasse")
-                        .WithMany("BikeTypes")
-                        .HasForeignKey("KlasseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Brand");
-
-                    b.Navigation("Klasse");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.CostumerEvent", b =>
@@ -880,11 +835,6 @@ namespace WSB_Management.Migrations
                     b.Navigation("Customers");
                 });
 
-            modelBuilder.Entity("WSB_Management.Models.BikeType", b =>
-                {
-                    b.Navigation("Bikes");
-                });
-
             modelBuilder.Entity("WSB_Management.Models.Cup", b =>
                 {
                     b.Navigation("CupTeams");
@@ -893,11 +843,6 @@ namespace WSB_Management.Migrations
             modelBuilder.Entity("WSB_Management.Models.Event", b =>
                 {
                     b.Navigation("CustomerEvents");
-                });
-
-            modelBuilder.Entity("WSB_Management.Models.Klasse", b =>
-                {
-                    b.Navigation("BikeTypes");
                 });
 
             modelBuilder.Entity("WSB_Management.Models.Team", b =>

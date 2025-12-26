@@ -86,20 +86,20 @@ namespace WSB_Management.Components.Pages
         private string SelectedFlagPath => CurrentCountry?.FlagPath ?? "";
 
         private string? _fileNameBase;
-        public string FileNameBase { 
+        public string? FileNameBase { 
             get => _fileNameBase; 
             set 
             { 
                 if (_fileNameBase != value)
                 {
                     _fileNameBase = value;
-                    CurrentCountry.UpdateFlagPath(_fileNameBase);
+                    CurrentCountry.UpdateFlagPath(_fileNameBase ?? "");
                     SafeStateHasChanged();
                 }
             } 
         }
 
-        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
+        [Inject] public IDbContextFactory<WSBRacingDbContext> _contextFactory { get; set; } = default!;
 
         public async Task SaveCountry()
         {
@@ -119,26 +119,18 @@ namespace WSB_Management.Components.Pages
                 // FlagPath sicherstellen (falls Upload noch nicht erfolgt ist)
                 if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
                 {
-                    CurrentCountry.UpdateFlagPath(FileNameBase);
+                    CurrentCountry.UpdateFlagPath(FileNameBase ?? "");
                 }
 
                 var isNew = CurrentCountry.Id == 0;
 
+                await using var context = await _contextFactory.CreateDbContextAsync();
                 if (isNew)
-                    _context.Countries.Add(CurrentCountry);
+                    context.Countries.Add(CurrentCountry);
                 else
-                {
-                    var tracked = _context.Countries.Local.FirstOrDefault(c => c.Id == CurrentCountry.Id);
-                    if (tracked != null)
-                        _context.Entry(tracked).CurrentValues.SetValues(CurrentCountry);
-                    else
-                    {
-                        _context.Countries.Attach(CurrentCountry);
-                        _context.Entry(CurrentCountry).State = EntityState.Modified;
-                    }
-                }
+                    context.Countries.Update(CurrentCountry);
 
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
@@ -182,7 +174,8 @@ namespace WSB_Management.Components.Pages
             {
                 if (countries is null || countries.Count == 0)
                 {
-                    countries = await _context.Countries
+                    await using var context = await _contextFactory.CreateDbContextAsync();
+                    countries = await context.Countries
                         .AsNoTracking()
                         .ToListAsync(_cts?.Token ?? CancellationToken.None);
                 }
@@ -227,7 +220,7 @@ namespace WSB_Management.Components.Pages
                 }
 
                 if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
-                    CurrentCountry.UpdateFlagPath(FileNameBase);
+                    CurrentCountry.UpdateFlagPath(FileNameBase ?? "");
 
                 if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
                 {
@@ -274,7 +267,8 @@ namespace WSB_Management.Components.Pages
 
             try
             {
-                var country = _context.Countries.FirstOrDefault(c => c.Id == countryId);
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var country = await context.Countries.FirstOrDefaultAsync(c => c.Id == countryId, _cts?.Token ?? CancellationToken.None);
                 if (country == null) return;
 
                 if (!string.IsNullOrWhiteSpace(country.FlagPath))
@@ -284,8 +278,8 @@ namespace WSB_Management.Components.Pages
                 }
 
                 countries.Remove(country);
-                _context.Countries.Remove(country);
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                context.Countries.Remove(country);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 

@@ -200,10 +200,10 @@ namespace WSB_Management.Components.Pages
 
         public List<Gruppe> gruppen { get; set; } = new List<Gruppe>();
         public List<Brand> brands { get; set; } = new List<Brand>();
+        public List<BikeType> bikeTypes { get; set; } = new List<BikeType>();
         public List<Cup> cups { get; set; } = new List<Cup>();
 
         // Tracks
-        string Pattern = "^([0-5]?[0-9]):([0-5][0-9]),[0-9]{2}$";
 
         public class TrackRef
         {
@@ -222,7 +222,8 @@ namespace WSB_Management.Components.Pages
 
 
         public List<Customer> customers { get; set; } = new List<Customer>();
-        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
+        [Inject] public IDbContextFactory<WSBRacingDbContext> _contextFactory { get; set; } = default!;
+        [Inject] public WSB_Management.Services.CustomerService CustomerService { get; set; } = default!;
         public async Task SaveCustomerAsync()
         {
             if (_isDisposed) return;
@@ -234,27 +235,30 @@ namespace WSB_Management.Components.Pages
                     string.IsNullOrWhiteSpace(CurrentCustomer?.Contact?.Surname))
                     return;
 
-                await ValidateAndFixBrandReference();
-                ValidateAndFixCountryReference();
-                ValidateAndFixGruppeReference();
-                ValidateAndFixTransponderReference();
-                PrepareBikeForSaving();
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                
+                await ValidateAndFixBrandReference(context);
+                ValidateAndFixCountryReference(context);
+                ValidateAndFixGruppeReference(context);
+                ValidateAndFixTransponderReference(context);
+                PrepareBikeForSaving(context);
 
                 var isNew = CurrentCustomer.Id == 0;
                 
                 if (isNew)
                 {
                     CurrentCustomer.Validfrom = DateTime.UtcNow;
-                    _context.Customers.Add(CurrentCustomer);
+                    context.Customers.Add(CurrentCustomer);
                 }
                 else
                 {
                     // Existierenden Customer aus DB laden mit allen Includes
-                    var existingCustomer = await _context.Customers
+                    var existingCustomer = await context.Customers
                         .Include(c => c.Address)
                         .Include(c => c.Contact)
                         .Include(c => c.NotfallContact)
-                        .Include(c => c.Bike).ThenInclude(b => b!.Brand)
+                        .Include(c => c.Bike).ThenInclude(b => b!.BikeType).ThenInclude(bt => bt.Brand)
+                        .Include(c => c.Bike).ThenInclude(b => b!.BikeType).ThenInclude(bt => bt.Klasse)
                         .Include(c => c.Gruppe)
                         .Include(c => c.Transponder)
                         .FirstOrDefaultAsync(c => c.Id == CurrentCustomer.Id, _cts?.Token ?? CancellationToken.None);
@@ -304,31 +308,29 @@ namespace WSB_Management.Components.Pages
                         {
                             existingCustomer.Bike = new Bike();
                         }
-                        existingCustomer.Bike.Type = CurrentCustomer.Bike.Type;
-                        existingCustomer.Bike.Ccm = CurrentCustomer.Bike.Ccm;
-                        existingCustomer.Bike.Year = CurrentCustomer.Bike.Year;
-                        existingCustomer.Bike.Brand = CurrentCustomer.Bike.Brand;
+                        existingCustomer.Bike.BikeType = CurrentCustomer.Bike.BikeType;
+                        existingCustomer.Bike.BikeTypeId = CurrentCustomer.Bike.BikeTypeId;
                     }
                     else
                     {
                         existingCustomer.Bike = null!;
                     }
                     
-                    _context.Customers.Update(existingCustomer);
+                    context.Customers.Update(existingCustomer);
                     
                     // SelectedCustomer auf den getrackten Customer setzen für Team-Updates
                     SelectedCustomer = existingCustomer;
                 }
 
                 // Customer zuerst speichern, um ID zu erhalten
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
                 Message = $"Gespeichert: {CurrentCustomer.Contact?.Firstname} {CurrentCustomer.Contact?.Surname}";
 
                 // Schritt 2: Team-Zuordnungen aktualisieren
-                await UpdateTeamAssignments();
+                await UpdateTeamAssignments(context);
 
                 if (_isDisposed) return;
 
@@ -361,29 +363,29 @@ namespace WSB_Management.Components.Pages
             }
         }
 
-        private void PrepareBikeForSaving()
+        private void PrepareBikeForSaving(WSBRacingDbContext context)
         {
             if (CurrentCustomer?.Bike == null) return;
 
-            // Wenn das Bike keine Brand hat, entferne es komplett
-            if (CurrentCustomer.Bike.Brand == null)
+            // Wenn das Bike keinen BikeType hat, entferne es komplett
+            if (CurrentCustomer.Bike.BikeType == null)
             {
                 CurrentCustomer.Bike = null!;
                 return;
             }
 
-            // Sicherstellen, dass die Brand korrekt getrackt ist
-            if (CurrentCustomer.Bike.Brand.Id > 0)
+            // Sicherstellen, dass der BikeType korrekt getrackt ist
+            if (CurrentCustomer.Bike.BikeType.Id > 0)
             {
-                var trackedBrand = _context.Brands.Local.FirstOrDefault(b => b.Id == CurrentCustomer.Bike.Brand.Id);
-                if (trackedBrand != null)
+                var trackedBikeType = context.BikeTypes.Local.FirstOrDefault(bt => bt.Id == CurrentCustomer.Bike.BikeType.Id);
+                if (trackedBikeType != null)
                 {
-                    CurrentCustomer.Bike.Brand = trackedBrand;
+                    CurrentCustomer.Bike.BikeType = trackedBikeType;
                 }
                 else
                 {
-                    // Brand als Unchanged markieren, da sie bereits in der DB existiert
-                    _context.Entry(CurrentCustomer.Bike.Brand).State = EntityState.Unchanged;
+                    // BikeType als Unchanged markieren, da er bereits in der DB existiert
+                    context.Entry(CurrentCustomer.Bike.BikeType).State = EntityState.Unchanged;
                 }
             }
 
@@ -391,69 +393,14 @@ namespace WSB_Management.Components.Pages
             CurrentCustomer.Bike.Customers ??= new List<Customer>();
         }
 
-        private async Task ValidateAndFixBrandReference()
+        private async Task ValidateAndFixBrandReference(WSBRacingDbContext context)
         {
-            if (CurrentCustomer?.Bike == null) return;
-
-            try
-            {
-                // Wenn keine Brand ausgewählt wurde, erstelle kein Bike
-                if (CurrentCustomer.Bike.Brand == null || CurrentCustomer.Bike.Brand.Id == 0)
-                {
-                    // Wenn das Bike leer ist (keine anderen Werte), entferne es komplett
-                    if (string.IsNullOrWhiteSpace(CurrentCustomer.Bike.Type) && 
-                        string.IsNullOrWhiteSpace(CurrentCustomer.Bike.Ccm) && 
-                        CurrentCustomer.Bike.Year == 0)
-                    {
-                        // Setze Bike auf null, damit es nicht gespeichert wird
-                        CurrentCustomer.Bike = null!;
-                        return;
-                    }
-                    
-                    // Andernfalls verwende eine Default-Brand
-                    var defaultBrand = await GetOrCreateDefaultBrand();
-                    CurrentCustomer.Bike.Brand = defaultBrand;
-                    return;
-                }
-
-                // Prüfen ob die ausgewählte Brand gültig ist
-                var existingBrand = brands.FirstOrDefault(b => b.Id == CurrentCustomer.Bike.Brand.Id);
-                if (existingBrand == null)
-                {
-                    // Nochmal in der Datenbank suchen
-                    existingBrand = await _context.Brands
-                        .FirstOrDefaultAsync(b => b.Id == CurrentCustomer.Bike.Brand.Id, _cts?.Token ?? CancellationToken.None);
-                }
-
-                if (existingBrand == null)
-                {
-                    // Falls Brand nicht existiert, verwende Default-Brand
-                    var defaultBrand = await GetOrCreateDefaultBrand();
-                    CurrentCustomer.Bike.Brand = defaultBrand;
-                }
-                else
-                {
-                    // Verwende die gültige Brand
-                    CurrentCustomer.Bike.Brand = existingBrand;
-                }
-            }
-            catch (Exception)
-            {
-                // Im Fehlerfall Default-Brand verwenden oder Bike entfernen
-                try
-                {
-                    var defaultBrand = await GetOrCreateDefaultBrand();
-                    CurrentCustomer.Bike.Brand = defaultBrand;
-                }
-                catch
-                {
-                    // Als letzte Option, Bike entfernen
-                    CurrentCustomer.Bike = null!;
-                }
-            }
+            // Diese Methode ist jetzt obsolet, da wir BikeType verwenden
+            // Wird für Kompatibilität beibehalten, macht aber nichts mehr
+            await Task.CompletedTask;
         }
 
-        private void ValidateAndFixCountryReference()
+        private void ValidateAndFixCountryReference(WSBRacingDbContext context)
         {
             if (CurrentCustomer?.Address?.Country == null) return;
 
@@ -467,20 +414,20 @@ namespace WSB_Management.Components.Pages
                     CurrentCustomer.Address.Country = existingCountry;
                     
                     // Sicherstellen, dass Entity Framework die Country als Unchanged markiert
-                    var trackedCountry = _context.Countries.Local.FirstOrDefault(c => c.Id == existingCountry.Id);
+                    var trackedCountry = context.Countries.Local.FirstOrDefault(c => c.Id == existingCountry.Id);
                     if (trackedCountry != null)
                     {
                         CurrentCustomer.Address.Country = trackedCountry;
                     }
                     else
                     {
-                        _context.Entry(CurrentCustomer.Address.Country).State = EntityState.Unchanged;
+                        context.Entry(CurrentCustomer.Address.Country).State = EntityState.Unchanged;
                     }
                 }
                 else
                 {
                     // Falls Country nicht in der lokalen Liste ist, aus DB laden
-                    var dbCountry = _context.Countries.FirstOrDefault(c => c.Id == CurrentCustomer.Address.Country.Id);
+                    var dbCountry = context.Countries.FirstOrDefault(c => c.Id == CurrentCustomer.Address.Country.Id);
                     if (dbCountry != null)
                     {
                         CurrentCustomer.Address.Country = dbCountry;
@@ -499,7 +446,7 @@ namespace WSB_Management.Components.Pages
             }
         }
 
-        private void ValidateAndFixGruppeReference()
+        private void ValidateAndFixGruppeReference(WSBRacingDbContext context)
         {
             if (CurrentCustomer?.Gruppe == null) return;
 
@@ -513,20 +460,20 @@ namespace WSB_Management.Components.Pages
                     CurrentCustomer.Gruppe = existingGruppe;
                     
                     // Sicherstellen, dass Entity Framework die Gruppe als Unchanged markiert
-                    var trackedGruppe = _context.Gruppes.Local.FirstOrDefault(g => g.Id == existingGruppe.Id);
+                    var trackedGruppe = context.Gruppes.Local.FirstOrDefault(g => g.Id == existingGruppe.Id);
                     if (trackedGruppe != null)
                     {
                         CurrentCustomer.Gruppe = trackedGruppe;
                     }
                     else
                     {
-                        _context.Entry(CurrentCustomer.Gruppe).State = EntityState.Unchanged;
+                        context.Entry(CurrentCustomer.Gruppe).State = EntityState.Unchanged;
                     }
                 }
                 else
                 {
                     // Falls Gruppe nicht in der lokalen Liste ist, aus DB laden
-                    var dbGruppe = _context.Gruppes.FirstOrDefault(g => g.Id == CurrentCustomer.Gruppe.Id);
+                    var dbGruppe = context.Gruppes.FirstOrDefault(g => g.Id == CurrentCustomer.Gruppe.Id);
                     if (dbGruppe != null)
                     {
                         CurrentCustomer.Gruppe = dbGruppe;
@@ -545,7 +492,7 @@ namespace WSB_Management.Components.Pages
             }
         }
 
-        private void ValidateAndFixTransponderReference()
+        private void ValidateAndFixTransponderReference(WSBRacingDbContext context)
         {
             if (CurrentCustomer?.Transponder == null) return;
 
@@ -559,20 +506,20 @@ namespace WSB_Management.Components.Pages
                     CurrentCustomer.Transponder = existingTransponder;
                     
                     // Sicherstellen, dass Entity Framework den Transponder als Unchanged markiert
-                    var trackedTransponder = _context.Transponders.Local.FirstOrDefault(t => t.Id == existingTransponder.Id);
+                    var trackedTransponder = context.Transponders.Local.FirstOrDefault(t => t.Id == existingTransponder.Id);
                     if (trackedTransponder != null)
                     {
                         CurrentCustomer.Transponder = trackedTransponder;
                     }
                     else
                     {
-                        _context.Entry(CurrentCustomer.Transponder).State = EntityState.Unchanged;
+                        context.Entry(CurrentCustomer.Transponder).State = EntityState.Unchanged;
                     }
                 }
                 else
                 {
                     // Falls Transponder nicht in der lokalen Liste ist, aus DB laden
-                    var dbTransponder = _context.Transponders.FirstOrDefault(t => t.Id == CurrentCustomer.Transponder.Id);
+                    var dbTransponder = context.Transponders.FirstOrDefault(t => t.Id == CurrentCustomer.Transponder.Id);
                     if (dbTransponder != null)
                     {
                         CurrentCustomer.Transponder = dbTransponder;
@@ -591,18 +538,18 @@ namespace WSB_Management.Components.Pages
             }
         }
 
-        private async Task<Brand> GetOrCreateDefaultBrand()
+        private async Task<Brand> GetOrCreateDefaultBrand(WSBRacingDbContext context)
         {
             const string defaultBrandName = "Unbekannt";
             
-            var defaultBrand = await _context.Brands
+            var defaultBrand = await context.Brands
                 .FirstOrDefaultAsync(b => b.Name == defaultBrandName, _cts?.Token ?? CancellationToken.None);
 
             if (defaultBrand == null)
             {
                 defaultBrand = new Brand { Name = defaultBrandName };
-                _context.Brands.Add(defaultBrand);
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                context.Brands.Add(defaultBrand);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
                 
                 // Zur lokalen Liste hinzufügen
                 if (!brands.Any(b => b.Name == defaultBrandName))
@@ -612,7 +559,7 @@ namespace WSB_Management.Components.Pages
             return defaultBrand;
         }
 
-        private async Task UpdateTeamAssignments()
+        private async Task UpdateTeamAssignments(WSBRacingDbContext context)
         {
             if (CurrentCustomer == null) return;
 
@@ -622,7 +569,7 @@ namespace WSB_Management.Components.Pages
                 // Wenn das Team eine ID von 0 hat, ist es neu und muss erstellt werden
                 if (Tc5kTeam.Id == 0)
                 {
-                    var createdTeam = await FindOrCreateTeamAsync(Tc5kTeam.Name, Tc5kCup);
+                    var createdTeam = await FindOrCreateTeamAsync(Tc5kTeam.Name, Tc5kCup, context);
                     Tc5kTeam = createdTeam; // Referenz auf das korrekte Team setzen
                 }
                 
@@ -647,7 +594,7 @@ namespace WSB_Management.Components.Pages
                 // Wenn das Team eine ID von 0 hat, ist es neu und muss erstellt werden
                 if (EndTeam.Id == 0)
                 {
-                    var createdTeam = await FindOrCreateTeamAsync(EndTeam.Name, EndCup);
+                    var createdTeam = await FindOrCreateTeamAsync(EndTeam.Name, EndCup, context);
                     EndTeam = createdTeam; // Referenz auf das korrekte Team setzen
                 }
                 
@@ -667,7 +614,7 @@ namespace WSB_Management.Components.Pages
             }
 
             // Team-Änderungen speichern
-            await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+            await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
         }
         public async Task DeleteCustomer(long? customerId)
         {
@@ -675,14 +622,16 @@ namespace WSB_Management.Components.Pages
 
             try
             {
-                var customer = _context.Customers
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                
+                var customer = context.Customers
                     .Include(c => c.Address)
                     .Include(c => c.Contact)
                     .FirstOrDefault(c => c.Id == customerId);
 
                 if (customer == null) return;
 
-                var cups = await _context.Cups
+                var cups = await context.Cups
                     .Include(c => c.CupTeams).ThenInclude(t => t.Members)
                     .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
                     .ToListAsync(_cts?.Token ?? CancellationToken.None);
@@ -706,8 +655,8 @@ namespace WSB_Management.Components.Pages
                     }
                 }
 
-                _context.Customers.Remove(customer);
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                context.Customers.Remove(customer);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
@@ -744,16 +693,7 @@ namespace WSB_Management.Components.Pages
             {
                 if (customers is null || customers.Count==0)
                 {
-                    customers = await _context.Customers
-                        .Include(c => c.Address).ThenInclude(a => a.Country)
-                        .Include(c => c.Gruppe)
-                        .Include(c => c.Contact)
-                        .Include(c => c.NotfallContact)
-                        .Include(c => c.Transponder)
-                        .Include(c => c.Bike).ThenInclude(b => b.Brand)
-                        .AsNoTracking()
-                        .OrderBy(c => c.Contact!.Surname)
-                        .ToListAsync(_cts?.Token ?? CancellationToken.None);
+                    customers = await CustomerService.GetCustomersAsync(_cts?.Token ?? CancellationToken.None);
                 }
 
                 if (_isDisposed) return new GridDataProviderResult<Customer> { Data = new List<Customer>(), TotalCount = 0 };
@@ -795,15 +735,12 @@ namespace WSB_Management.Components.Pages
             customer.NotfallContact ??= new Contact();
             
             // Bike nur initialisieren wenn noch nicht vorhanden
-            // Die Brand wird später in ValidateAndFixBrandReference behandelt
             if (customer.Bike == null)
             {
                 customer.Bike = new Bike
                 {
-                    Type = "",
-                    Ccm = "",
-                    Year = 0,
-                    Brand = null!, // Wird später in ValidateAndFixBrandReference gesetzt
+                    BikeType = null,
+                    BikeTypeId = null,
                     Customers = new List<Customer>()
                 };
             }
@@ -814,32 +751,44 @@ namespace WSB_Management.Components.Pages
 
             try
             {
-                countries = await _context.Countries
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                
+                countries = await context.Countries
                     .AsNoTracking()
                     .OrderBy(c => c.Shorttxt)
                     .ToListAsync(_cts?.Token ?? CancellationToken.None);
 
-                transponders = await _context.Transponders
+                transponders = await context.Transponders
                     .AsNoTracking()
                     .OrderBy(c => c.Id)
                     .ToListAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
-                gruppen = await _context.Gruppes
+                gruppen = await context.Gruppes
                     .AsNoTracking()
                     .ToListAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
-                brands = await _context.Brands
+                brands = await context.Brands
                     .AsNoTracking()
                     .OrderBy(b => b.Name)
                     .ToListAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
-                cups = await _context.Cups
+                bikeTypes = await context.BikeTypes
+                    .AsNoTracking()
+                    .Include(bt => bt.Brand)
+                    .Include(bt => bt.Klasse)
+                    .OrderBy(bt => bt.Brand!.Name)
+                    .ThenBy(bt => bt.Name)
+                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
+
+                if (_isDisposed) return;
+
+                cups = await context.Cups
                     .Include(c => c.CupTeams)
                         .ThenInclude(t => t.TeamChef)
                     .Include(c => c.CupTeams)
@@ -851,21 +800,21 @@ namespace WSB_Management.Components.Pages
 
                 if (_isDisposed) return;
 
-                Tc5kCup = await _context.Cups
+                Tc5kCup = await context.Cups
                     .Include(c => c.CupTeams).ThenInclude(t => t.Members)
                     .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
                     .FirstOrDefaultAsync(c => c.Name == "TC5K", _cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
-                EndCup = await _context.Cups
+                EndCup = await context.Cups
                     .Include(c => c.CupTeams).ThenInclude(t => t.Members)
                     .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
                     .FirstOrDefaultAsync(c => c.Name == "END Cup", _cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
-                AllTeams = await _context.Teams
+                AllTeams = await context.Teams
                     .Include(t => t.Members)
                     .Include(t => t.TeamChef)
                     .OrderBy(t => t.Name)
@@ -876,8 +825,8 @@ namespace WSB_Management.Components.Pages
                 if (Tc5kCup == null)
                 {
                     Tc5kCup = new Cup { Name = "TC5K", CupTeams = new List<Team>() };
-                    _context.Cups.Add(Tc5kCup);
-                    await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                    context.Cups.Add(Tc5kCup);
+                    await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
                 }
                 
                 if (_isDisposed) return;
@@ -885,8 +834,8 @@ namespace WSB_Management.Components.Pages
                 if (EndCup == null)
                 {
                     EndCup = new Cup { Name = "END Cup", CupTeams = new List<Team>() };
-                    _context.Cups.Add(EndCup);
-                    await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                    context.Cups.Add(EndCup);
+                    await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
                 }
                 
                 if (_isDisposed) return;
@@ -979,7 +928,10 @@ namespace WSB_Management.Components.Pages
                     
                     // Nur speichern wenn Customer bereits existiert
                     if (CurrentCustomer.Id > 0)
-                        await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                    {
+                        await using var context = await _contextFactory.CreateDbContextAsync();
+                        await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                    }
                 }
                 // Team-Auswahl erfolgt direkt über die InputSelectTeam Komponente
 
@@ -1025,7 +977,10 @@ namespace WSB_Management.Components.Pages
                     
                     // Nur speichern wenn Customer bereits existiert
                     if (CurrentCustomer.Id > 0)
-                        await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                    {
+                        await using var context = await _contextFactory.CreateDbContextAsync();
+                        await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                    }
                 }
                 // Team-Auswahl erfolgt direkt über die InputSelectTeam Komponente
 
@@ -1054,7 +1009,7 @@ namespace WSB_Management.Components.Pages
             catch (Exception) { return; }
         }
 
-        private async Task<Team> FindOrCreateTeamAsync(string name, Cup cup)
+        private async Task<Team> FindOrCreateTeamAsync(string name, Cup cup, WSBRacingDbContext context)
         {
             if (string.IsNullOrWhiteSpace(name)) 
                 throw new ArgumentException("Team name cannot be empty", nameof(name));
@@ -1065,7 +1020,7 @@ namespace WSB_Management.Components.Pages
             if (team == null)
             {
                 // In der Datenbank nach existierendem Team suchen
-                team = await _context.Teams
+                team = await context.Teams
                     .Include(t => t.Members)
                     .FirstOrDefaultAsync(t => t.Name == name, _cts?.Token ?? CancellationToken.None);
                 
@@ -1073,10 +1028,10 @@ namespace WSB_Management.Components.Pages
                 {
                     // Neues Team erstellen
                     team = new Team { Name = name, Members = new List<Customer>() };
-                    _context.Teams.Add(team);
+                    context.Teams.Add(team);
                     
                     // Team muss erst gespeichert werden, um ID zu bekommen
-                    await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                    await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
                 }
                 
                 // Team zur lokalen Liste hinzufügen
@@ -1093,7 +1048,7 @@ namespace WSB_Management.Components.Pages
             return team;
         }
 
-        private Team FindOrCreateTeam(string name, Cup cup)
+        private Team FindOrCreateTeam(string name, Cup cup, WSBRacingDbContext context)
         {
             if (string.IsNullOrWhiteSpace(name)) 
                 throw new ArgumentException("Team name cannot be empty", nameof(name));
@@ -1103,7 +1058,7 @@ namespace WSB_Management.Components.Pages
             {
                 team = new Team { Name = name, Members = new List<Customer>() };
                 AllTeams.Add(team);
-                _context.Teams.Add(team);
+                context.Teams.Add(team);
             }
 
             // Sicherstellen, dass Cup Teams initialisiert ist

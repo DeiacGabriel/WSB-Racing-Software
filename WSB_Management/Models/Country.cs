@@ -34,11 +34,74 @@ public class Country
     {
         const string folder = "flags";
         const string prefix = "flagge-";
-        string basis;
+
+        // Map bekannte 2-Buchstaben-Codes auf vorhandene deutsche Dateinamen
+        var code = Shorttxt.Trim().ToUpperInvariant();
+        var map = new Dictionary<string, string>
+        {
+            ["AT"] = "oesterreich",
+            ["DE"] = "deutschland",
+            ["CH"] = "schweiz",
+            ["IT"] = "italien",
+            ["FR"] = "frankreich",
+            ["ES"] = "spanien",
+            ["PT"] = "portugal",
+            ["NL"] = "niederlande",
+            ["BE"] = "belgien",
+            ["LU"] = "luxemburg",
+            ["DK"] = "daenemark",
+            ["SE"] = "schweden",
+            ["NO"] = "norwegen",
+            ["FI"] = "finnland",
+            ["IE"] = "irland",
+            ["GB"] = "grossbritanien",
+            ["TR"] = "tuerkei",
+            ["CZ"] = "tschechien",
+            ["SK"] = "slowakei",
+            ["SI"] = "slowenien",
+            ["HR"] = "kroatien",
+            ["RS"] = "serbien",
+            ["BA"] = "bosnien",
+            ["MK"] = "mazedonien",
+            ["HU"] = "ungarn",
+            ["RO"] = "rumaenien",
+            ["BG"] = "bulgarien",
+            ["PL"] = "polen",
+            ["UA"] = "ukraine",
+            ["BY"] = "weissrussland",
+            ["RU"] = "russland",
+            ["GR"] = "griechenland",
+            ["LT"] = "litauen",
+            ["LV"] = "lettland",
+            ["EE"] = "estland",
+            ["IS"] = "island",
+            ["LI"] = "liechtenstein",
+            ["MD"] = "moldawien",
+            ["MC"] = "monaco",
+            ["ME"] = "montenegro",
+            ["SM"] = "san-marino",
+            ["CY"] = "republik-zypern",
+            ["VA"] = "vatikan",
+            ["MT"] = "malta",
+            ["KZ"] = "kasachstan",
+            ["SA"] = "saudi",
+            ["EU"] = "eu"
+        };
+
+        string basis = "";
         if (!string.IsNullOrWhiteSpace(fileNameBase))
+        {
             basis = fileNameBase;
+        }
+        else if (!string.IsNullOrWhiteSpace(code) && map.TryGetValue(code, out var mapped))
+        {
+            basis = mapped;
+        }
         else
-            basis = string.IsNullOrWhiteSpace(Longtxt) ? Shorttxt.ToLower() : Longtxt.ToLower();
+        {
+            basis = string.IsNullOrWhiteSpace(Longtxt) ? Shorttxt.ToLowerInvariant() : Longtxt.ToLowerInvariant();
+        }
+
         if (string.IsNullOrWhiteSpace(basis))
         {
             FlagPath = "";

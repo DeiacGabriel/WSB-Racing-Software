@@ -19,7 +19,7 @@
     [Parameter] public IEnumerable<Gruppe>? Items { get; set; }
     [Parameter] public Func<Gruppe, string>? TextSelector { get; set; }
 
-    protected override bool TryParseValueFromString(string? value, out Gruppe? result, out string? validationErrorMessage)
+    protected override bool TryParseValueFromString(string? value, out Gruppe? result, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out string? validationErrorMessage)
     {
         result = null;
         validationErrorMessage = null;

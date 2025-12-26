@@ -13,14 +13,18 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        var connectionString = builder.Configuration.GetConnectionString("MySQLConnection");
+        var connectionString = builder.Configuration.GetConnectionString("PostgresConnection");
         builder.Services.AddDbContext<WSBRacingDbContext>(options =>
-            options.UseMySQL(connectionString ?? throw new InvalidOperationException("MySQLConnection not configured.")));
+            options.UseNpgsql(connectionString ?? throw new InvalidOperationException("PostgresConnection not configured.")));
+        builder.Services.AddDbContextFactory<WSBRacingDbContext>(
+            options => options.UseNpgsql(connectionString ?? throw new InvalidOperationException("PostgresConnection not configured.")),
+            ServiceLifetime.Scoped);
             
         builder.Services.AddBlazorBootstrap();
         
-        // EventService für Kommunikation zwischen Komponenten
+        // Services
         builder.Services.AddScoped<EventService>();
+        builder.Services.AddScoped<WSB_Management.Services.CustomerService>();
         
         builder.Services.AddIdentity<Personal, IdentityRole<int>>(options =>
         {

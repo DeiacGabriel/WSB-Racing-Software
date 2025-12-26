@@ -78,7 +78,7 @@ namespace WSB_Management.Components.Pages
             brands = new List<Brand>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
         }
 
-        [Inject] public WSBRacingDbContext _context { get; set; } = default!;
+        [Inject] public IDbContextFactory<WSBRacingDbContext> _contextFactory { get; set; } = default!;
 
         public async Task SaveBrand()
         {
@@ -96,28 +96,17 @@ namespace WSB_Management.Components.Pages
 
                 var isNew = CurrentBrand.Id == 0;
                 
+                await using var context = await _contextFactory.CreateDbContextAsync();
                 if (isNew)
                 {
-                    _context.Brands.Add(CurrentBrand);
+                    context.Brands.Add(CurrentBrand);
                 }
                 else
                 {
-                    // Prüfen ob die Entität bereits getrackt wird
-                    var tracked = _context.Brands.Local.FirstOrDefault(b => b.Id == CurrentBrand.Id);
-                    if (tracked != null)
-                    {
-                        // Vorhandene getrackte Entität aktualisieren
-                        _context.Entry(tracked).CurrentValues.SetValues(CurrentBrand);
-                    }
-                    else
-                    {
-                        // Entität anhängen und als geändert markieren
-                        _context.Brands.Attach(CurrentBrand);
-                        _context.Entry(CurrentBrand).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-                    }
+                    context.Brands.Update(CurrentBrand);
                 }
 
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 
@@ -161,7 +150,8 @@ namespace WSB_Management.Components.Pages
             {
                 if (brands is null || brands.Count == 0)
                 {
-                    brands = await _context.Brands
+                    await using var context = await _contextFactory.CreateDbContextAsync();
+                    brands = await context.Brands
                         .AsNoTracking()
                         .OrderBy(b => b.Id)
                         .ToListAsync(_cts?.Token ?? CancellationToken.None);
@@ -194,11 +184,12 @@ namespace WSB_Management.Components.Pages
 
             try
             {
-                var brand = _context.Brands.FirstOrDefault(b => b.Id == brandId);
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                var brand = await context.Brands.FirstOrDefaultAsync(b => b.Id == brandId, _cts?.Token ?? CancellationToken.None);
                 if (brand == null) return;
 
-                _context.Brands.Remove(brand);
-                await _context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+                context.Brands.Remove(brand);
+                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
 
                 if (_isDisposed) return;
 

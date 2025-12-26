@@ -1,4 +1,5 @@
-﻿@using WSB_Management.Components.Customs
+﻿@using Microsoft.AspNetCore.Components.Web
+@using WSB_Management.Components.Customs
 @using WSB_Management.Components.Layout
 @using System.ComponentModel.DataAnnotations
 @using WSB_Management.Models
@@ -186,19 +187,25 @@
         <div>
             <div class="bike-wrapper">
                 <label>Bike</label>
-                <InputSelectBrand @bind-Value="CurrentCustomer.Bike.Brand"
-                    Items="brands"
+                <InputSelectBikeType @bind-Value="CurrentCustomer.Bike.BikeType"
+                    Items="bikeTypes"
                     class="land-select" />
-                <label>Type</label>
-                <input type="text" @bind="CurrentCustomer.Bike.Type" placeholder="Type" />
+                <label>Marke</label>
+                <input type="text" 
+                       value="@CurrentCustomer.Bike.BikeType?.Brand?.Name" 
+                       disabled 
+                       class="land-select" 
+                       placeholder="(automatisch)" />
                 <label>Klasse</label>
-                <input type="text" @bind="CurrentCustomer.Bike.Ccm" placeholder="Klasse" />
+                <input type="text" 
+                       value="@CurrentCustomer.Bike.BikeType?.Klasse?.Bezeichnung" 
+                       disabled 
+                       class="land-select" 
+                       placeholder="(automatisch)" />
                 <label>Kunde seit</label>
                 <input type="date" @bind="CurrentCustomer.Validfrom" />
              </div>
              <div class="bike-wrapper2">
-                <label>Baujahr</label>
-                <input type="number" @bind="CurrentCustomer.Bike.Year" placeholder="Baujahr" />
                 <label>Tran</label>
                 <InputSelectTransponder @bind-Value="CurrentCustomer.Transponder"
                                         Items="transponders"
