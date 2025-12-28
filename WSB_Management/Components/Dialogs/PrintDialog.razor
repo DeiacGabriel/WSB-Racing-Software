@@ -1,0 +1,228 @@
+@using WSB_Management.Models
+@using WSB_Management.Services
+@inject RaceService RaceService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h5" Class="d-flex align-items-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Print" Color="Color.Primary" />
+            Drucken - @CurrentEvent?.Name
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+            <MudTabPanel Text="Gesamtlisten" Icon="@Icons.Material.Filled.ListAlt">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.h6" Class="mb-3">Standard Listen</MudText>
+                        <MudStack>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.People" OnClick="@(() => Print(PrintType.ParticipantList))">
+                                Teilnehmerliste
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.CardMembership" OnClick="@(() => Print(PrintType.SeasonPassList))">
+                                Jahreskartenliste
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="@(() => Print(PrintType.NewCustomers))">
+                                Neukundenliste Jahr @DateTime.Now.Year
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.AccountBalance" OnClick="@(() => Print(PrintType.AccountCheck))">
+                                Druck Kontocheckliste
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.MoneyOff" OnClick="@(() => Print(PrintType.OpenPayments))">
+                                Offene Posten (alle)
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Warning" OnClick="@(() => Print(PrintType.OpenPaymentsPresent))">
+                                Offene Posten (nur anwesend)
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Gavel" OnClick="@(() => Print(PrintType.ReminderList))">
+                                Mahnliste
+                            </MudButton>
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.h6" Class="mb-3">Event Listen</MudText>
+                        <MudStack>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.EventBusy" OnClick="@(() => Print(PrintType.AbsentAll))">
+                                Abwesend alle
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.EventBusy" OnClick="@(() => Print(PrintType.AbsentOpen))">
+                                Abwesend offen
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.HourglassEmpty" OnClick="@(() => Print(PrintType.WaitlistAll))">
+                                Warteliste
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Layers" OnClick="@(() => Print(PrintType.GroupList))">
+                                Teilnehmer nach Gruppen
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Pin" OnClick="@(() => Print(PrintType.StartNumberList))">
+                                Fix-Startnummernliste
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Garage" OnClick="@(() => Print(PrintType.BoxList))">
+                                Boxenliste
+                            </MudButton>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+            
+            <MudTabPanel Text="Einzelausdrucke" Icon="@Icons.Material.Filled.Person">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.h6" Class="mb-3">Dokumente</MudText>
+                        <MudStack>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Assignment" OnClick="@(() => Print(PrintType.WaiverEmpty))">
+                                Verzichtserklärung LEER
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Redeem" OnClick="@(() => Print(PrintType.VoucherPrint))">
+                                Guthabenbelegdruck
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Badge" OnClick="@(() => Print(PrintType.CustomerSheet))">
+                                Kundenstammblatt
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Label" OnClick="@(() => Print(PrintType.AddressLabel))">
+                                Adresskleber
+                            </MudButton>
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.h6" Class="mb-3">Buchungen</MudText>
+                        <MudStack>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.History" OnClick="@(() => Print(PrintType.BookingsArchive))">
+                                Teilnehmerbuchungen ARCHIV
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Today" OnClick="@(() => Print(PrintType.BookingsCurrent))">
+                                Teilnehmerbuchungen AKTUELL
+                            </MudButton>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+            
+            <MudTabPanel Text="Wertungen" Icon="@Icons.Material.Filled.EmojiEvents">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.h6" Class="mb-3">Cup Teilnehmer</MudText>
+                        @foreach (var cup in ActiveCups)
+                        {
+                            <MudButton Variant="Variant.Outlined" FullWidth="true" Class="mb-2"
+                                       StartIcon="@Icons.Material.Filled.EmojiEvents"
+                                       OnClick="@(() => PrintCupList(cup.Id))">
+                                @cup.Name Teilnehmer
+                            </MudButton>
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.h6" Class="mb-3">Spezial</MudText>
+                        <MudStack>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Speed" OnClick="@(() => Print(PrintType.TC5KList))">
+                                TC5K Liste
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.DirectionsCar" OnClick="@(() => Print(PrintType.EnduranceList))">
+                                Endurance Liste
+                            </MudButton>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+        </MudTabs>
+        
+        @* Export Optionen *@
+        <MudPaper Class="pa-3 mt-3" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-2">Export Format</MudText>
+            <MudRadioGroup @bind-Value="ExportFormat">
+                <MudRadio T="ExportFormatType" Value="ExportFormatType.PDF" Color="Color.Primary">
+                    <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf" /> PDF
+                </MudRadio>
+                <MudRadio T="ExportFormatType" Value="ExportFormatType.Excel" Color="Color.Success">
+                    <MudIcon Icon="@Icons.Material.Filled.TableChart" /> Excel
+                </MudRadio>
+                <MudRadio T="ExportFormatType" Value="ExportFormatType.Preview" Color="Color.Info">
+                    <MudIcon Icon="@Icons.Material.Filled.Preview" /> Voransicht
+                </MudRadio>
+            </MudRadioGroup>
+        </MudPaper>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Schließen</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter] public Event? CurrentEvent { get; set; }
+    
+    private List<RaceCup> ActiveCups { get; set; } = new();
+    private ExportFormatType ExportFormat { get; set; } = ExportFormatType.Preview;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        ActiveCups = await RaceService.GetActiveCupsAsync();
+    }
+    
+    private void Print(PrintType type)
+    {
+        // TODO: Implement actual printing/export logic
+        Console.WriteLine($"Printing {type} as {ExportFormat}");
+    }
+    
+    private void PrintCupList(long cupId)
+    {
+        Console.WriteLine($"Printing cup {cupId} list as {ExportFormat}");
+    }
+    
+    private void Cancel() => MudDialog.Close();
+    
+    public enum PrintType
+    {
+        ParticipantList,
+        SeasonPassList,
+        NewCustomers,
+        AccountCheck,
+        OpenPayments,
+        OpenPaymentsPresent,
+        ReminderList,
+        AbsentAll,
+        AbsentOpen,
+        WaitlistAll,
+        GroupList,
+        StartNumberList,
+        BoxList,
+        WaiverEmpty,
+        VoucherPrint,
+        CustomerSheet,
+        AddressLabel,
+        BookingsArchive,
+        BookingsCurrent,
+        TC5KList,
+        EnduranceList
+    }
+    
+    public enum ExportFormatType
+    {
+        PDF,
+        Excel,
+        Preview
+    }
+}

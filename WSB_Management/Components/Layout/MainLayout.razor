@@ -1,3 +1,19 @@
 ﻿@inherits LayoutComponentBase
-<NavMenu />
-@Body
+@* Required *@
+<MudThemeProvider />
+<MudPopoverProvider />
+
+@* Needed for dialogs *@
+<MudDialogProvider />
+
+@* Needed for snackbars *@
+<MudSnackbarProvider />
+
+<MudLayout>
+    <NavMenu />
+    <MudMainContent Class="pt-0">
+        <div style="padding-top: 48px;">
+            @Body
+        </div>
+    </MudMainContent>
+</MudLayout>

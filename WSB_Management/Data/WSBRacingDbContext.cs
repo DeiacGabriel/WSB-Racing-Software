@@ -23,6 +23,19 @@ public class WSBRacingDbContext : IdentityDbContext<Personal, Position, int>
     public DbSet<Team> Teams { get; set; }
     public DbSet<Gruppe> Gruppes { get; set; }
     
+    // Neue Entitäten für Race Management
+    public DbSet<EventDayPrice> EventDayPrices { get; set; }
+    public DbSet<Box> Boxes { get; set; }
+    public DbSet<BoxBooking> BoxBookings { get; set; }
+    public DbSet<WaiverDeclaration> WaiverDeclarations { get; set; }
+    public DbSet<Payment> Payments { get; set; }
+    public DbSet<StartNumber> StartNumbers { get; set; }
+    public DbSet<EmailLog> EmailLogs { get; set; }
+    public DbSet<SeasonPass> SeasonPasses { get; set; }
+    public DbSet<RaceCup> RaceCups { get; set; }
+    public DbSet<CustomerCupParticipation> CustomerCupParticipations { get; set; }
+    public DbSet<LaptimeReference> LaptimeReferences { get; set; }
+    
     public WSBRacingDbContext(DbContextOptions<WSBRacingDbContext> options) : base(options)
     {
     }

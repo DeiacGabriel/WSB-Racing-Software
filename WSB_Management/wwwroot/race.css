@@ -365,3 +365,342 @@
     font-weight: 700;
     text-transform: uppercase;
 }
+
+/* === New RacePage Styles === */
+
+/* Participant Status Row Colors */
+.participant-row {
+    transition: background-color 0.2s ease;
+}
+
+.participant-row:hover {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+.status-green {
+    background-color: rgba(40, 167, 69, 0.15) !important;
+    border-left: 4px solid #28a745;
+}
+
+.status-yellow {
+    background-color: rgba(255, 193, 7, 0.2) !important;
+    border-left: 4px solid #ffc107;
+}
+
+.status-red {
+    background-color: rgba(220, 53, 69, 0.15) !important;
+    border-left: 4px solid #dc3545;
+}
+
+.status-blue {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+    border-left: 4px solid #0d6efd;
+}
+
+.status-gray {
+    background-color: rgba(108, 117, 125, 0.1) !important;
+    border-left: 4px solid #6c757d;
+}
+
+/* Kassa Cards */
+.kassa-card-success {
+    background-color: #28a745 !important;
+    color: white;
+}
+
+.kassa-card-danger {
+    background-color: #dc3545 !important;
+    color: white;
+}
+
+.kassa-card-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+
+/* Statistics Cards */
+.stat-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    border: 1px solid #dee2e6;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2c3e50;
+    line-height: 1;
+}
+
+.stat-card .stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.5rem;
+}
+
+/* Event Selector Navbar */
+.event-navbar {
+    background: linear-gradient(135deg, #343a40 0%, #212529 100%);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.event-selector {
+    min-width: 300px;
+}
+
+/* Day Pills/Badges */
+.day-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-right: 0.25rem;
+}
+
+.day-badge-booked {
+    background-color: #28a745;
+    color: white;
+}
+
+.day-badge-available {
+    background-color: #e9ecef;
+    color: #6c757d;
+}
+
+/* Participant Table Styling */
+.participant-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.participant-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+    padding: 0.75rem;
+    border-bottom: 2px solid #dee2e6;
+    text-align: left;
+}
+
+.participant-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: middle;
+}
+
+/* Quick Filter Chips */
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.filter-chip:hover {
+    transform: translateY(-1px);
+}
+
+.filter-chip.active {
+    border-color: #0d6efd;
+}
+
+.filter-chip-all {
+    background-color: #6c757d;
+    color: white;
+}
+
+.filter-chip-paid {
+    background-color: #28a745;
+    color: white;
+}
+
+.filter-chip-unpaid {
+    background-color: #dc3545;
+    color: white;
+}
+
+.filter-chip-present {
+    background-color: #0d6efd;
+    color: white;
+}
+
+/* Detail Panel */
+.detail-panel {
+    border-left: 4px solid #0d6efd;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.detail-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #dee2e6;
+}
+
+/* Waiver Status */
+.waiver-valid {
+    color: #28a745;
+}
+
+.waiver-missing {
+    color: #dc3545;
+}
+
+.waiver-expired {
+    color: #ffc107;
+}
+
+/* Print Button */
+.print-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 1000;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .event-navbar {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .event-selector {
+        min-width: 100%;
+    }
+    
+    .stat-card .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .filter-chip {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Loading Skeleton */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+    border-radius: 0.25rem;
+}
+
+@keyframes skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Group Column Styling */
+.group-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.group-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Transponder Status */
+.transponder-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.transponder-rented {
+    background-color: rgba(13, 110, 253, 0.15);
+    color: #0d6efd;
+}
+
+.transponder-owned {
+    background-color: rgba(40, 167, 69, 0.15);
+    color: #28a745;
+}
+
+.transponder-none {
+    background-color: rgba(108, 117, 125, 0.15);
+    color: #6c757d;
+}
+
+/* Cup Badge */
+.cup-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: linear-gradient(135deg, #ffd700 0%, #ffb300 100%);
+    color: #212529;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.cup-badge::before {
+    content: "🏆";
+    font-size: 0.75rem;
+}
+
+/* Season Pass Badge */
+.season-pass-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+    color: white;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Action Buttons in Table */
+.action-buttons {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.action-buttons .mud-icon-button {
+    transition: transform 0.15s ease;
+}
+
+.action-buttons .mud-icon-button:hover {
+    transform: scale(1.1);
+}

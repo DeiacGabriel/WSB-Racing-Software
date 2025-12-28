@@ -1,1107 +1,276 @@
-﻿using BlazorBootstrap;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Server.Circuits;
-using Microsoft.EntityFrameworkCore;
-using WSB_Management.Data;
+using MudBlazor;
 using WSB_Management.Models;
+using WSB_Management.Services;
 
-namespace WSB_Management.Components.Pages
+namespace WSB_Management.Components.Pages;
+
+public partial class CustomerPage : IDisposable
 {
-    public partial class CustomerPage : IDisposable, IAsyncDisposable
+    private bool _isDisposed;
+    private CancellationTokenSource? _cts = new();
+
+    [Inject] public MasterDataService MasterDataService { get; set; } = default!;
+    [Inject] public ISnackbar Snackbar { get; set; } = default!;
+
+    // Data
+    private List<Customer> Customers { get; set; } = new();
+    private List<Country> Countries { get; set; } = new();
+    private List<Gruppe> Gruppen { get; set; } = new();
+    private List<Transponder> Transponders { get; set; } = new();
+    private List<BikeType> BikeTypes { get; set; } = new();
+
+    // Selection & Editing
+    private Customer? SelectedCustomer { get; set; }
+    private bool IsNewCustomer => SelectedCustomer?.Id == 0;
+    private string? Message { get; set; }
+
+    // Filters
+    private string? SearchText { get; set; }
+    private string? GroupFilter { get; set; }
+
+    // Computed
+    private IEnumerable<Customer> FilteredCustomers
     {
-        private bool _isDisposed;
-        private CancellationTokenSource? _cts = new();
-        
-        public void Dispose()
+        get
         {
-            _isDisposed = true;
-            try { _cts?.Cancel(); } catch { }
-            _cts?.Dispose();
-            _cts = null;
-            GC.SuppressFinalize(this);
-        }
-        
-        public ValueTask DisposeAsync()
-        {
-            Dispose();
-            return ValueTask.CompletedTask;
-        }
-        
-        private void SafeStateHasChanged()
-        {
-            if (_isDisposed) return;
-            try 
-            { 
-                if (!_isDisposed)
-                    StateHasChanged();
-            } 
-            catch (ObjectDisposedException) { /* Component disposed */ }
-            catch (InvalidOperationException) { /* Renderer disposed */ }
-        }
-        
-        private Grid<Customer>? grid;
-        private Customer? _selectedCustomer;
-        public Customer? SelectedCustomer
-        {
-            get => _selectedCustomer;
-            set
-            {
-                if (_selectedCustomer != value && value is not null)
-                {
-                    _selectedCustomer = value;
-                    // Cup-States für den ausgewählten Customer initialisieren
-                    InitCupStateFromDb();
-                    SafeStateHasChanged();
-                }
-            }
-        }
-        
-        private Customer _newCustomer = new Customer();
-        public Customer NewCustomer
-        {
-            get => _newCustomer;
-            set
-            {
-                if (_newCustomer != value)
-                {
-                    _newCustomer = value;
-                    EnsureCustomerProperties(_newCustomer);
-                    SafeStateHasChanged();
-                }
-            }
-        }
-        private Customer CurrentCustomer 
-        {
-            get 
-            {
-                var customer = SelectedCustomer ?? NewCustomer;
-                EnsureCustomerProperties(customer);
-                return customer;
-            }
-        }
-        
-        private string? Message { get; set; }
-        
-        // Cache für bessere Performance
-        private void InvalidateCustomersCache()
-        {
-            customers = new List<Customer>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
-        }
-        private string PlzOrt
-        {
-            get => $"{CurrentCustomer?.Address?.Zip ?? ""} {CurrentCustomer?.Address?.City ?? ""}".Trim();
-            set
-            {
-                EnsureAddress();
-                var input = (value ?? string.Empty).Trim();
-                var parts = input.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length > 0 && int.TryParse(parts[0], out _))
-                {
-                    CurrentCustomer.Address.Zip = parts[0];
-                    CurrentCustomer.Address.City = parts.Length > 1 ? parts[1] : ""; 
-                }
-                else
-                {
-                    CurrentCustomer.Address.Zip = "";
-                    CurrentCustomer.Address.City = input;
-                }
-                SafeStateHasChanged();
-            }
-        }
-        
-        // Für die BestTime-Eingabe
-        private string _bestTimeInput = string.Empty;
-        public string BestTimeInput
-        {
-            get => _bestTimeInput;
-            set
-            {
-                _bestTimeInput = value;
-                // Versuche die Eingabe zu parsen und in CurrentCustomer.BestTime zu setzen
-                if (TryParseTimeString(value, out TimeSpan timeSpan))
-                {
-                    CurrentCustomer.BestTime = timeSpan;
-                }
-                else
-                {
-                    CurrentCustomer.BestTime = null;
-                }
-                SafeStateHasChanged();
-            }
-        }
-        
-        private bool TryParseTimeString(string input, out TimeSpan timeSpan)
-        {
-            timeSpan = TimeSpan.Zero;
-            if (string.IsNullOrWhiteSpace(input)) return false;
-            
-            // Pattern: mm:ss,f oder mm:ss,ff (z.B. "2:15,5" oder "2:15,50")
-            var pattern = @"^([0-5]?[0-9]):([0-5][0-9]),([0-9]{1,2})$";
-            var match = System.Text.RegularExpressions.Regex.Match(input, pattern);
-            
-            if (match.Success)
-            {
-                var minutes = int.Parse(match.Groups[1].Value);
-                var seconds = int.Parse(match.Groups[2].Value);
-                var hundredthsStr = match.Groups[3].Value;
-                
-                // Wenn nur eine Stelle, mit 0 auffüllen (z.B. "3" -> "30")
-                if (hundredthsStr.Length == 1)
-                    hundredthsStr += "0";
-                    
-                var hundredths = int.Parse(hundredthsStr);
-                
-                timeSpan = new TimeSpan(0, 0, minutes, seconds, hundredths * 10);
-                return true;
-            }
-            return false;
-        }
-        
-        public List<Country> countries { get; set; } = new List<Country>();
-        public List<Transponder> transponders { get; set; } = new List<Transponder>();
-        private string NotfallContact 
-        {             
-            get => $"{CurrentCustomer?.NotfallContact?.Firstname ?? ""} {CurrentCustomer?.NotfallContact?.Surname ?? ""}".Trim();
-            set
-            {
-                EnsureNotfallContact();
-                var input = (value ?? string.Empty).Trim();
-                var parts = input.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length > 0)
-                {
-                    CurrentCustomer.NotfallContact.Firstname = parts[0];
-                    CurrentCustomer.NotfallContact.Surname = parts.Length > 1 ? parts[1] : "";
-                }
-                else
-                {
-                    CurrentCustomer.NotfallContact.Firstname = "";
-                    CurrentCustomer.NotfallContact.Surname = input;
-                }
-                SafeStateHasChanged();
-            }
-        }
-        // Falggen
-        private string SelectedFlagPath => CurrentCustomer?.Address?.Country?.FlagPath ?? "";
+            var query = Customers.AsEnumerable();
 
-        // Cup State
-        private Cup? Tc5kCup;
-        private Cup? EndCup;
-        private List<Team> AllTeams = new();
+            if (!string.IsNullOrWhiteSpace(SearchText))
+            {
+                var search = SearchText.ToLower();
+                query = query.Where(c =>
+                    (c.Contact?.Surname?.ToLower().Contains(search) ?? false) ||
+                    (c.Contact?.Firstname?.ToLower().Contains(search) ?? false) ||
+                    (c.Mail?.ToLower().Contains(search) ?? false) ||
+                    (c.Startnumber?.ToLower().Contains(search) ?? false));
+            }
 
-        // TC5K State
-        private bool Tc5kParticipates;
-        private bool Tc5kIsTeamChef;
-        private Team? Tc5kTeam;
+            if (!string.IsNullOrWhiteSpace(GroupFilter))
+            {
+                query = query.Where(c => c.Gruppe?.Name == GroupFilter);
+            }
 
-        // END State
-        private bool EndParticipates;
-        private bool EndIsTeamChef;
-        private Team? EndTeam;
-
-        public List<Gruppe> gruppen { get; set; } = new List<Gruppe>();
-        public List<Brand> brands { get; set; } = new List<Brand>();
-        public List<BikeType> bikeTypes { get; set; } = new List<BikeType>();
-        public List<Cup> cups { get; set; } = new List<Cup>();
-
-        // Tracks
-
-        public class TrackRef
-        {
-            public string Code { get; set; } = "";
-            public string? Value { get; set; }
+            return query.OrderBy(c => c.Contact?.Surname);
         }
+    }
 
-        List<TrackRef> Tracks = new()
+    // Date pickers
+    private DateTime? BirthDatePicker
+    {
+        get => SelectedCustomer?.Birthdate == default ? null : SelectedCustomer?.Birthdate;
+        set { if (SelectedCustomer != null && value.HasValue) SelectedCustomer.Birthdate = value.Value; }
+    }
+
+    private DateTime? LastGuthabenAddPicker
+    {
+        get => SelectedCustomer?.LastGuthabenAdd == default ? null : SelectedCustomer?.LastGuthabenAdd;
+        set { if (SelectedCustomer != null && value.HasValue) SelectedCustomer.LastGuthabenAdd = value.Value; }
+    }
+
+    private DateTime? ValidFromPicker
+    {
+        get => SelectedCustomer?.Validfrom == default ? null : SelectedCustomer?.Validfrom;
+        set { if (SelectedCustomer != null && value.HasValue) SelectedCustomer.Validfrom = value.Value; }
+    }
+
+    private DateTime? LetzteBuchungPicker
+    {
+        get => SelectedCustomer?.letzteBuchung == default ? null : SelectedCustomer?.letzteBuchung;
+        set { if (SelectedCustomer != null && value.HasValue) SelectedCustomer.letzteBuchung = value.Value; }
+    }
+
+    private DateTime? LetzterEinkaufPicker
+    {
+        get => SelectedCustomer?.letzterEinkauf == default ? null : SelectedCustomer?.letzterEinkauf;
+        set { if (SelectedCustomer != null && value.HasValue) SelectedCustomer.letzterEinkauf = value.Value; }
+    }
+
+    // Best Time
+    private string? BestTimeString
+    {
+        get
         {
-            new(){ Code="BRN"}, new(){ Code="MUG"},
-            new(){ Code="CRE"}, new(){ Code="PAN"},
-            new(){ Code="HUN"}, new(){ Code="RBR"},
-            new(){ Code="LAU"}, new(){ Code="RIJ"},
-            new(){ Code="MST"}, new(){ Code="SLO"},
+            if (SelectedCustomer?.BestTime == null) return null;
+            var ts = SelectedCustomer.BestTime.Value;
+            return $"{ts.Minutes}:{ts.Seconds:D2},{ts.Milliseconds / 10:D2}";
+        }
+        set
+        {
+            if (SelectedCustomer == null) return;
+            if (TryParseTime(value, out var ts))
+                SelectedCustomer.BestTime = ts;
+            else
+                SelectedCustomer.BestTime = null;
+        }
+    }
+
+    private static bool TryParseTime(string? input, out TimeSpan ts)
+    {
+        ts = TimeSpan.Zero;
+        if (string.IsNullOrWhiteSpace(input)) return false;
+
+        var pattern = @"^(\d+):(\d{2}),(\d{1,2})$";
+        var match = System.Text.RegularExpressions.Regex.Match(input, pattern);
+        if (!match.Success) return false;
+
+        var minutes = int.Parse(match.Groups[1].Value);
+        var seconds = int.Parse(match.Groups[2].Value);
+        var hundredths = match.Groups[3].Value;
+        if (hundredths.Length == 1) hundredths += "0";
+
+        ts = new TimeSpan(0, 0, minutes, seconds, int.Parse(hundredths) * 10);
+        return true;
+    }
+
+    // BikeType
+    private BikeType? SelectedBikeType
+    {
+        get => SelectedCustomer?.Bike?.BikeType;
+        set
+        {
+            if (SelectedCustomer == null) return;
+            EnsureBike();
+            SelectedCustomer.Bike!.BikeType = value;
+            SelectedCustomer.Bike.BikeTypeId = value?.Id ?? 0;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (_isDisposed) return;
+        var ct = _cts?.Token ?? CancellationToken.None;
+
+        try
+        {
+            Customers = await MasterDataService.GetCustomersAsync(ct);
+            Countries = await MasterDataService.GetCountriesAsync(ct);
+            Gruppen = await MasterDataService.GetGruppenAsync(ct);
+            Transponders = await MasterDataService.GetTranspondersAsync(ct);
+            BikeTypes = await MasterDataService.GetBikeTypesAsync(ct);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private void SelectCustomer(Customer customer)
+    {
+        SelectedCustomer = customer;
+        EnsureSubObjects();
+        Message = null;
+    }
+
+    private void AddNewCustomer()
+    {
+        SelectedCustomer = new Customer
+        {
+            Validfrom = DateTime.UtcNow,
+            Birthdate = DateTime.UtcNow.AddYears(-30)
         };
+        EnsureSubObjects();
+        Message = null;
+    }
 
+    private void CloseDetail()
+    {
+        SelectedCustomer = null;
+        Message = null;
+    }
 
-        public List<Customer> customers { get; set; } = new List<Customer>();
-        [Inject] public IDbContextFactory<WSBRacingDbContext> _contextFactory { get; set; } = default!;
-        [Inject] public WSB_Management.Services.CustomerService CustomerService { get; set; } = default!;
-        public async Task SaveCustomerAsync()
+    private void EnsureSubObjects()
+    {
+        if (SelectedCustomer == null) return;
+        SelectedCustomer.Contact ??= new Contact();
+        SelectedCustomer.NotfallContact ??= new Contact();
+        SelectedCustomer.Address ??= new Address();
+        EnsureBike();
+    }
+
+    private void EnsureBike()
+    {
+        if (SelectedCustomer == null) return;
+        SelectedCustomer.Bike ??= new Bike();
+    }
+
+    private async Task SaveCustomer()
+    {
+        if (_isDisposed || SelectedCustomer == null) return;
+
+        try
         {
-            if (_isDisposed) return;
-
-            try
+            // Validation
+            if (string.IsNullOrWhiteSpace(SelectedCustomer.Contact?.Firstname) &&
+                string.IsNullOrWhiteSpace(SelectedCustomer.Contact?.Surname))
             {
-                // Basic Validation
-                if (string.IsNullOrWhiteSpace(CurrentCustomer?.Contact?.Firstname) && 
-                    string.IsNullOrWhiteSpace(CurrentCustomer?.Contact?.Surname))
-                    return;
-
-                await using var context = await _contextFactory.CreateDbContextAsync();
-                
-                await ValidateAndFixBrandReference(context);
-                ValidateAndFixCountryReference(context);
-                ValidateAndFixGruppeReference(context);
-                ValidateAndFixTransponderReference(context);
-                PrepareBikeForSaving(context);
-
-                var isNew = CurrentCustomer.Id == 0;
-                
-                if (isNew)
-                {
-                    CurrentCustomer.Validfrom = DateTime.UtcNow;
-                    context.Customers.Add(CurrentCustomer);
-                }
-                else
-                {
-                    // Existierenden Customer aus DB laden mit allen Includes
-                    var existingCustomer = await context.Customers
-                        .Include(c => c.Address)
-                        .Include(c => c.Contact)
-                        .Include(c => c.NotfallContact)
-                        .Include(c => c.Bike).ThenInclude(b => b!.BikeType).ThenInclude(bt => bt.Brand)
-                        .Include(c => c.Bike).ThenInclude(b => b!.BikeType).ThenInclude(bt => bt.Klasse)
-                        .Include(c => c.Gruppe)
-                        .Include(c => c.Transponder)
-                        .FirstOrDefaultAsync(c => c.Id == CurrentCustomer.Id, _cts?.Token ?? CancellationToken.None);
-                        
-                    if (existingCustomer == null)
-                    {
-                        Message = "Customer nicht gefunden.";
-                        SafeStateHasChanged();
-                        return;
-                    }
-                    
-                    // Manuell alle Properties aktualisieren
-                    existingCustomer.Validfrom = CurrentCustomer.Validfrom;
-                    existingCustomer.BestTime = CurrentCustomer.BestTime;
-                    existingCustomer.Gruppe = CurrentCustomer.Gruppe;
-                    existingCustomer.Transponder = CurrentCustomer.Transponder;
-                    
-                    // Contact aktualisieren
-                    if (existingCustomer.Contact != null && CurrentCustomer.Contact != null)
-                    {
-                        existingCustomer.Contact.Firstname = CurrentCustomer.Contact.Firstname;
-                        existingCustomer.Contact.Surname = CurrentCustomer.Contact.Surname;
-                        existingCustomer.Contact.Phonenumber = CurrentCustomer.Contact.Phonenumber;
-                    }
-                    
-                    // NotfallContact aktualisieren
-                    if (existingCustomer.NotfallContact != null && CurrentCustomer.NotfallContact != null)
-                    {
-                        existingCustomer.NotfallContact.Firstname = CurrentCustomer.NotfallContact.Firstname;
-                        existingCustomer.NotfallContact.Surname = CurrentCustomer.NotfallContact.Surname;
-                        existingCustomer.NotfallContact.Phonenumber = CurrentCustomer.NotfallContact.Phonenumber;
-                    }
-                    
-                    // Address aktualisieren
-                    if (existingCustomer.Address != null && CurrentCustomer.Address != null)
-                    {
-                        existingCustomer.Address.Street = CurrentCustomer.Address.Street;
-                        existingCustomer.Address.Zip = CurrentCustomer.Address.Zip;
-                        existingCustomer.Address.City = CurrentCustomer.Address.City;
-                        existingCustomer.Address.Country = CurrentCustomer.Address.Country;
-                    }
-                    
-                    // Bike aktualisieren
-                    if (CurrentCustomer.Bike != null)
-                    {
-                        if (existingCustomer.Bike == null)
-                        {
-                            existingCustomer.Bike = new Bike();
-                        }
-                        existingCustomer.Bike.BikeType = CurrentCustomer.Bike.BikeType;
-                        existingCustomer.Bike.BikeTypeId = CurrentCustomer.Bike.BikeTypeId;
-                    }
-                    else
-                    {
-                        existingCustomer.Bike = null!;
-                    }
-                    
-                    context.Customers.Update(existingCustomer);
-                    
-                    // SelectedCustomer auf den getrackten Customer setzen für Team-Updates
-                    SelectedCustomer = existingCustomer;
-                }
-
-                // Customer zuerst speichern, um ID zu erhalten
-                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                Message = $"Gespeichert: {CurrentCustomer.Contact?.Firstname} {CurrentCustomer.Contact?.Surname}";
-
-                // Schritt 2: Team-Zuordnungen aktualisieren
-                await UpdateTeamAssignments(context);
-
-                if (_isDisposed) return;
-
-                // Cache invalidieren für Grid-Refresh
-                InvalidateCustomersCache();
-
-                SelectedCustomer = null;
-                NewCustomer = new Customer();
-
-                if (!_isDisposed && grid is not null)
-                {
-                    try
-                    {
-                        await grid.RefreshDataAsync();
-                    }
-                    catch (ObjectDisposedException) { return; }
-                    catch (InvalidOperationException) { return; }
-                    catch (TaskCanceledException) { return; }
-                    catch (Exception) { return; }
-                }
-
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (InvalidOperationException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception)
-            {
-                SafeStateHasChanged();
-            }
-        }
-
-        private void PrepareBikeForSaving(WSBRacingDbContext context)
-        {
-            if (CurrentCustomer?.Bike == null) return;
-
-            // Wenn das Bike keinen BikeType hat, entferne es komplett
-            if (CurrentCustomer.Bike.BikeType == null)
-            {
-                CurrentCustomer.Bike = null!;
+                Message = "Bitte Vor- oder Nachname eingeben.";
                 return;
             }
 
-            // Sicherstellen, dass der BikeType korrekt getrackt ist
-            if (CurrentCustomer.Bike.BikeType.Id > 0)
-            {
-                var trackedBikeType = context.BikeTypes.Local.FirstOrDefault(bt => bt.Id == CurrentCustomer.Bike.BikeType.Id);
-                if (trackedBikeType != null)
-                {
-                    CurrentCustomer.Bike.BikeType = trackedBikeType;
-                }
-                else
-                {
-                    // BikeType als Unchanged markieren, da er bereits in der DB existiert
-                    context.Entry(CurrentCustomer.Bike.BikeType).State = EntityState.Unchanged;
-                }
-            }
+            // References are already set via the object properties
+            // The service will handle the actual saving
 
-            // Customers-Liste für Bike initialisieren falls nötig
-            CurrentCustomer.Bike.Customers ??= new List<Customer>();
-        }
-
-        private async Task ValidateAndFixBrandReference(WSBRacingDbContext context)
-        {
-            // Diese Methode ist jetzt obsolet, da wir BikeType verwenden
-            // Wird für Kompatibilität beibehalten, macht aber nichts mehr
-            await Task.CompletedTask;
-        }
-
-        private void ValidateAndFixCountryReference(WSBRacingDbContext context)
-        {
-            if (CurrentCustomer?.Address?.Country == null) return;
-
-            try
-            {
-                // Prüfen ob das ausgewählte Land gültig ist
-                var existingCountry = countries.FirstOrDefault(c => c.Id == CurrentCustomer.Address.Country.Id);
-                if (existingCountry != null)
-                {
-                    // Verwende die gültige Country-Referenz aus der lokalen Liste
-                    CurrentCustomer.Address.Country = existingCountry;
-                    
-                    // Sicherstellen, dass Entity Framework die Country als Unchanged markiert
-                    var trackedCountry = context.Countries.Local.FirstOrDefault(c => c.Id == existingCountry.Id);
-                    if (trackedCountry != null)
-                    {
-                        CurrentCustomer.Address.Country = trackedCountry;
-                    }
-                    else
-                    {
-                        context.Entry(CurrentCustomer.Address.Country).State = EntityState.Unchanged;
-                    }
-                }
-                else
-                {
-                    // Falls Country nicht in der lokalen Liste ist, aus DB laden
-                    var dbCountry = context.Countries.FirstOrDefault(c => c.Id == CurrentCustomer.Address.Country.Id);
-                    if (dbCountry != null)
-                    {
-                        CurrentCustomer.Address.Country = dbCountry;
-                    }
-                    else
-                    {
-                        // Falls Country gar nicht existiert, entfernen
-                        CurrentCustomer.Address.Country = null!;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Im Fehlerfall Country-Referenz entfernen
-                CurrentCustomer.Address.Country = null!;
-            }
-        }
-
-        private void ValidateAndFixGruppeReference(WSBRacingDbContext context)
-        {
-            if (CurrentCustomer?.Gruppe == null) return;
-
-            try
-            {
-                // Prüfen ob die ausgewählte Gruppe gültig ist
-                var existingGruppe = gruppen.FirstOrDefault(g => g.Id == CurrentCustomer.Gruppe.Id);
-                if (existingGruppe != null)
-                {
-                    // Verwende die gültige Gruppe-Referenz aus der lokalen Liste
-                    CurrentCustomer.Gruppe = existingGruppe;
-                    
-                    // Sicherstellen, dass Entity Framework die Gruppe als Unchanged markiert
-                    var trackedGruppe = context.Gruppes.Local.FirstOrDefault(g => g.Id == existingGruppe.Id);
-                    if (trackedGruppe != null)
-                    {
-                        CurrentCustomer.Gruppe = trackedGruppe;
-                    }
-                    else
-                    {
-                        context.Entry(CurrentCustomer.Gruppe).State = EntityState.Unchanged;
-                    }
-                }
-                else
-                {
-                    // Falls Gruppe nicht in der lokalen Liste ist, aus DB laden
-                    var dbGruppe = context.Gruppes.FirstOrDefault(g => g.Id == CurrentCustomer.Gruppe.Id);
-                    if (dbGruppe != null)
-                    {
-                        CurrentCustomer.Gruppe = dbGruppe;
-                    }
-                    else
-                    {
-                        // Falls Gruppe gar nicht existiert, entfernen
-                        CurrentCustomer.Gruppe = null!;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Im Fehlerfall Gruppe-Referenz entfernen
-                CurrentCustomer.Gruppe = null!;
-            }
-        }
-
-        private void ValidateAndFixTransponderReference(WSBRacingDbContext context)
-        {
-            if (CurrentCustomer?.Transponder == null) return;
-
-            try
-            {
-                // Prüfen ob der ausgewählte Transponder gültig ist
-                var existingTransponder = transponders.FirstOrDefault(t => t.Id == CurrentCustomer.Transponder.Id);
-                if (existingTransponder != null)
-                {
-                    // Verwende die gültige Transponder-Referenz aus der lokalen Liste
-                    CurrentCustomer.Transponder = existingTransponder;
-                    
-                    // Sicherstellen, dass Entity Framework den Transponder als Unchanged markiert
-                    var trackedTransponder = context.Transponders.Local.FirstOrDefault(t => t.Id == existingTransponder.Id);
-                    if (trackedTransponder != null)
-                    {
-                        CurrentCustomer.Transponder = trackedTransponder;
-                    }
-                    else
-                    {
-                        context.Entry(CurrentCustomer.Transponder).State = EntityState.Unchanged;
-                    }
-                }
-                else
-                {
-                    // Falls Transponder nicht in der lokalen Liste ist, aus DB laden
-                    var dbTransponder = context.Transponders.FirstOrDefault(t => t.Id == CurrentCustomer.Transponder.Id);
-                    if (dbTransponder != null)
-                    {
-                        CurrentCustomer.Transponder = dbTransponder;
-                    }
-                    else
-                    {
-                        // Falls Transponder gar nicht existiert, entfernen
-                        CurrentCustomer.Transponder = null!;
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Im Fehlerfall Transponder-Referenz entfernen
-                CurrentCustomer.Transponder = null!;
-            }
-        }
-
-        private async Task<Brand> GetOrCreateDefaultBrand(WSBRacingDbContext context)
-        {
-            const string defaultBrandName = "Unbekannt";
+            await MasterDataService.SaveCustomerAsync(SelectedCustomer, _cts?.Token ?? CancellationToken.None);
             
-            var defaultBrand = await context.Brands
-                .FirstOrDefaultAsync(b => b.Name == defaultBrandName, _cts?.Token ?? CancellationToken.None);
-
-            if (defaultBrand == null)
-            {
-                defaultBrand = new Brand { Name = defaultBrandName };
-                context.Brands.Add(defaultBrand);
-                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-                
-                // Zur lokalen Liste hinzufügen
-                if (!brands.Any(b => b.Name == defaultBrandName))
-                    brands.Add(defaultBrand);
-            }
-
-            return defaultBrand;
-        }
-
-        private async Task UpdateTeamAssignments(WSBRacingDbContext context)
-        {
-            if (CurrentCustomer == null) return;
-
-            // TC5K Team-Zuordnung
-            if (Tc5kParticipates && Tc5kTeam != null && Tc5kCup != null)
-            {
-                // Wenn das Team eine ID von 0 hat, ist es neu und muss erstellt werden
-                if (Tc5kTeam.Id == 0)
-                {
-                    var createdTeam = await FindOrCreateTeamAsync(Tc5kTeam.Name, Tc5kCup, context);
-                    Tc5kTeam = createdTeam; // Referenz auf das korrekte Team setzen
-                }
-                
-                // Sicherstellen, dass das Team zu dem Cup gehört
-                Tc5kCup.CupTeams ??= new List<Team>();
-                if (!Tc5kCup.CupTeams.Any(t => t.Id == Tc5kTeam.Id))
-                    Tc5kCup.CupTeams.Add(Tc5kTeam);
-                
-                EnsureMember(Tc5kTeam, CurrentCustomer);
-                
-                if (Tc5kIsTeamChef)
-                    Tc5kTeam.TeamChef = CurrentCustomer;
-            }
-            else if (!Tc5kParticipates && Tc5kCup != null)
-            {
-                RemoveCustomerFromCup(Tc5kCup, CurrentCustomer);
-            }
-
-            // END Team-Zuordnung
-            if (EndParticipates && EndTeam != null && EndCup != null)
-            {
-                // Wenn das Team eine ID von 0 hat, ist es neu und muss erstellt werden
-                if (EndTeam.Id == 0)
-                {
-                    var createdTeam = await FindOrCreateTeamAsync(EndTeam.Name, EndCup, context);
-                    EndTeam = createdTeam; // Referenz auf das korrekte Team setzen
-                }
-                
-                // Sicherstellen, dass das Team zu dem Cup gehört
-                EndCup.CupTeams ??= new List<Team>();
-                if (!EndCup.CupTeams.Any(t => t.Id == EndTeam.Id))
-                    EndCup.CupTeams.Add(EndTeam);
-                
-                EnsureMember(EndTeam, CurrentCustomer);
-                
-                if (EndIsTeamChef)
-                    EndTeam.TeamChef = CurrentCustomer;
-            }
-            else if (!EndParticipates && EndCup != null)
-            {
-                RemoveCustomerFromCup(EndCup, CurrentCustomer);
-            }
-
-            // Team-Änderungen speichern
-            await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-        }
-        public async Task DeleteCustomer(long? customerId)
-        {
-            if (_isDisposed) return;
-
-            try
-            {
-                await using var context = await _contextFactory.CreateDbContextAsync();
-                
-                var customer = context.Customers
-                    .Include(c => c.Address)
-                    .Include(c => c.Contact)
-                    .FirstOrDefault(c => c.Id == customerId);
-
-                if (customer == null) return;
-
-                var cups = await context.Cups
-                    .Include(c => c.CupTeams).ThenInclude(t => t.Members)
-                    .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
-                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                foreach (var cup in cups)
-                {
-                    if (cup.CupTeams == null) continue;
-
-                    foreach (var team in cup.CupTeams)
-                    {
-                        if (team.TeamChef != null && team.TeamChef.Id == customerId)
-                            team.TeamChef = null;
-
-                        if (team.Members != null)
-                        {
-                            var index = team.Members.FindIndex(m => m.Id == customerId);
-                            if (index >= 0) team.Members.RemoveAt(index);
-                        }
-                    }
-                }
-
-                context.Customers.Remove(customer);
-                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                // Cache invalidieren für Grid-Refresh
-                InvalidateCustomersCache();
-
-                if (SelectedCustomer?.Id == customerId) SelectedCustomer = null;
-                NewCustomer = new Customer();
-
-                if (!_isDisposed && grid is not null)
-                {
-                    try
-                    {
-                        await grid.RefreshDataAsync();
-                    }
-                    catch (ObjectDisposedException) { return; }
-                    catch (InvalidOperationException) { return; }
-                    catch (TaskCanceledException) { return; }
-                    catch (Exception) { return; }
-                }
-
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (InvalidOperationException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception) { return; }
-        }
-        private async Task<GridDataProviderResult<Customer>> CustomerDataProvider(GridDataProviderRequest<Customer> request)
-        {
-            if (_isDisposed) return new GridDataProviderResult<Customer> { Data = new List<Customer>(), TotalCount = 0 };
-
-            try
-            {
-                if (customers is null || customers.Count==0)
-                {
-                    customers = await CustomerService.GetCustomersAsync(_cts?.Token ?? CancellationToken.None);
-                }
-
-                if (_isDisposed) return new GridDataProviderResult<Customer> { Data = new List<Customer>(), TotalCount = 0 };
-
-                return await Task.FromResult(request.ApplyTo(customers));
-            }
-            catch (ObjectDisposedException) 
-            { 
-                return new GridDataProviderResult<Customer> { Data = new List<Customer>(), TotalCount = 0 }; 
-            }
-            catch (TaskCanceledException) 
-            { 
-                return new GridDataProviderResult<Customer> { Data = new List<Customer>(), TotalCount = 0 }; 
-            }
-        }
-        private void OnSelectedItemsChanged(IEnumerable<Customer> selected)
-        {
-            var row = selected.FirstOrDefault();
-            SelectedCustomer = row ?? new Customer();
-            SafeStateHasChanged();
-        }
-        private void EnsureAddress()
-        {
-            if (CurrentCustomer.Address == null)
-                CurrentCustomer.Address = new Address();
-        }
-        
-        private void EnsureNotfallContact()
-        {
-            if (CurrentCustomer.NotfallContact == null)
-                CurrentCustomer.NotfallContact = new Contact();
-        }
-        private void EnsureCustomerProperties(Customer customer)
-        {
-            if (customer == null) return;
+            Snackbar.Add("Kunde gespeichert!", Severity.Success);
+            Message = "Erfolgreich gespeichert!";
             
-            customer.Address ??= new Address();
-            customer.Contact ??= new Contact();
-            customer.NotfallContact ??= new Contact();
+            await LoadDataAsync();
             
-            // Bike nur initialisieren wenn noch nicht vorhanden
-            if (customer.Bike == null)
+            // Bei neuem Kunden: In Liste finden
+            if (IsNewCustomer && SelectedCustomer.Id > 0)
             {
-                customer.Bike = new Bike
-                {
-                    BikeType = null,
-                    BikeTypeId = null,
-                    Customers = new List<Customer>()
-                };
+                var saved = Customers.FirstOrDefault(c => c.Id == SelectedCustomer.Id);
+                if (saved != null) SelectCustomer(saved);
             }
         }
-        protected override async Task OnInitializedAsync()
+        catch (Exception ex)
         {
-            if (_isDisposed) return;
-
-            try
-            {
-                await using var context = await _contextFactory.CreateDbContextAsync();
-                
-                countries = await context.Countries
-                    .AsNoTracking()
-                    .OrderBy(c => c.Shorttxt)
-                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
-
-                transponders = await context.Transponders
-                    .AsNoTracking()
-                    .OrderBy(c => c.Id)
-                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                gruppen = await context.Gruppes
-                    .AsNoTracking()
-                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                brands = await context.Brands
-                    .AsNoTracking()
-                    .OrderBy(b => b.Name)
-                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                bikeTypes = await context.BikeTypes
-                    .AsNoTracking()
-                    .Include(bt => bt.Brand)
-                    .Include(bt => bt.Klasse)
-                    .OrderBy(bt => bt.Brand!.Name)
-                    .ThenBy(bt => bt.Name)
-                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                cups = await context.Cups
-                    .Include(c => c.CupTeams)
-                        .ThenInclude(t => t.TeamChef)
-                    .Include(c => c.CupTeams)
-                        .ThenInclude(t => t.Members)
-                    .Where(c => c.Name != "TC5K" && c.Name != "END Cup")
-                    .OrderBy(c => c.Name)
-                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
-
-
-                if (_isDisposed) return;
-
-                Tc5kCup = await context.Cups
-                    .Include(c => c.CupTeams).ThenInclude(t => t.Members)
-                    .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
-                    .FirstOrDefaultAsync(c => c.Name == "TC5K", _cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                EndCup = await context.Cups
-                    .Include(c => c.CupTeams).ThenInclude(t => t.Members)
-                    .Include(c => c.CupTeams).ThenInclude(t => t.TeamChef)
-                    .FirstOrDefaultAsync(c => c.Name == "END Cup", _cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                AllTeams = await context.Teams
-                    .Include(t => t.Members)
-                    .Include(t => t.TeamChef)
-                    .OrderBy(t => t.Name)
-                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                if (Tc5kCup == null)
-                {
-                    Tc5kCup = new Cup { Name = "TC5K", CupTeams = new List<Team>() };
-                    context.Cups.Add(Tc5kCup);
-                    await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-                }
-                
-                if (_isDisposed) return;
-                
-                if (EndCup == null)
-                {
-                    EndCup = new Cup { Name = "END Cup", CupTeams = new List<Team>() };
-                    context.Cups.Add(EndCup);
-                    await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-                }
-                
-                if (_isDisposed) return;
-                
-                InitCupStateFromDb();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (InvalidOperationException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception) { return; }
+            Message = $"Fehler: {ex.Message}";
+            Snackbar.Add($"Fehler beim Speichern: {ex.Message}", Severity.Error);
         }
+    }
 
-        private void InitCupStateFromDb()
+    private async Task DeleteCustomer(long id)
+    {
+        if (_isDisposed) return;
+
+        try
         {
-            if (CurrentCustomer == null || CurrentCustomer.Id == 0) return;
-
-            // BestTime Input initialisieren
-            if (CurrentCustomer.BestTime.HasValue)
-            {
-                var time = CurrentCustomer.BestTime.Value;
-                _bestTimeInput = $"{(int)time.TotalMinutes}:{time.Seconds:D2},{time.Milliseconds / 10:D2}";
-            }
-            else
-            {
-                _bestTimeInput = string.Empty;
-            }
-
-            // TC5K - Null-Check für Tc5kCup
-            if (Tc5kCup?.CupTeams != null)
-            {
-                var t1 = Tc5kCup.CupTeams.FirstOrDefault(t => t.Members?.Any(m => m.Id == CurrentCustomer.Id) == true);
-                if (t1 != null)
-                {
-                    Tc5kParticipates = true;
-                    Tc5kTeam = t1;
-                    Tc5kIsTeamChef = (t1.TeamChef?.Id == CurrentCustomer.Id);
-                }
-                else
-                {
-                    Tc5kParticipates = false;
-                    Tc5kTeam = null;
-                    Tc5kIsTeamChef = false;
-                }
-            }
-            else
-            {
-                Tc5kParticipates = false;
-                Tc5kTeam = null;
-                Tc5kIsTeamChef = false;
-            }
-
-            // END - Null-Check für EndCup
-            if (EndCup?.CupTeams != null)
-            {
-                var t2 = EndCup.CupTeams.FirstOrDefault(t => t.Members?.Any(m => m.Id == CurrentCustomer.Id) == true);
-                if (t2 != null)
-                {
-                    EndParticipates = true;
-                    EndTeam = t2;
-                    EndIsTeamChef = (t2.TeamChef?.Id == CurrentCustomer.Id);
-                }
-                else
-                {
-                    EndParticipates = false;
-                    EndTeam = null;
-                    EndIsTeamChef = false;
-                }
-            }
-            else
-            {
-                EndParticipates = false;
-                EndTeam = null;
-                EndIsTeamChef = false;
-            }
-        }
-        // ---------- TC5K Events ----------
-        private async Task ToggleParticipatesTc5k(bool value)
-        {
-            if (_isDisposed) return;
-
-            try
-            {
-                Tc5kParticipates = value;
-
-                if (!value && Tc5kCup != null)
-                {
-                    RemoveCustomerFromCup(Tc5kCup, CurrentCustomer);
-                    Tc5kTeam = null;
-                    Tc5kIsTeamChef = false;
-                    
-                    // Nur speichern wenn Customer bereits existiert
-                    if (CurrentCustomer.Id > 0)
-                    {
-                        await using var context = await _contextFactory.CreateDbContextAsync();
-                        await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-                    }
-                }
-                // Team-Auswahl erfolgt direkt über die InputSelectTeam Komponente
-
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception) { return; }
-        }
-
-        private void ToggleTeamchefTc5k(bool value)
-        {
-            if (_isDisposed || CurrentCustomer == null) return;
-
-            try
-            {
-                Tc5kIsTeamChef = value;
-                
-                // Team-Chef Status wird beim Speichern verarbeitet
-                // Keine direkte Datenbankänderung hier
-                
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception) { return; }
-        }
-
-        // ---------- END Events ----------
-        private async Task ToggleParticipatesEnd(bool value)
-        {
-            if (_isDisposed) return;
-
-            try
-            {
-                EndParticipates = value;
-
-                if (!value && EndCup != null)
-                {
-                    RemoveCustomerFromCup(EndCup, CurrentCustomer);
-                    EndTeam = null;
-                    EndIsTeamChef = false;
-                    
-                    // Nur speichern wenn Customer bereits existiert
-                    if (CurrentCustomer.Id > 0)
-                    {
-                        await using var context = await _contextFactory.CreateDbContextAsync();
-                        await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-                    }
-                }
-                // Team-Auswahl erfolgt direkt über die InputSelectTeam Komponente
-
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception) { return; }
-        }
-
-        private void ToggleTeamchefEnd(bool value)
-        {
-            if (_isDisposed || CurrentCustomer == null) return;
-
-            try
-            {
-                EndIsTeamChef = value;
-                
-                // Team-Chef Status wird beim Speichern verarbeitet
-                // Keine direkte Datenbankänderung hier
-                
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception) { return; }
-        }
-
-        private async Task<Team> FindOrCreateTeamAsync(string name, Cup cup, WSBRacingDbContext context)
-        {
-            if (string.IsNullOrWhiteSpace(name)) 
-                throw new ArgumentException("Team name cannot be empty", nameof(name));
-
-            // Zuerst in der lokalen Liste suchen
-            var team = AllTeams.FirstOrDefault(t => t.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            await MasterDataService.DeleteCustomerAsync(id, _cts?.Token ?? CancellationToken.None);
+            Snackbar.Add("Kunde gelöscht!", Severity.Warning);
             
-            if (team == null)
-            {
-                // In der Datenbank nach existierendem Team suchen
-                team = await context.Teams
-                    .Include(t => t.Members)
-                    .FirstOrDefaultAsync(t => t.Name == name, _cts?.Token ?? CancellationToken.None);
+            if (SelectedCustomer?.Id == id)
+                CloseDetail();
                 
-                if (team == null)
-                {
-                    // Neues Team erstellen
-                    team = new Team { Name = name, Members = new List<Customer>() };
-                    context.Teams.Add(team);
-                    
-                    // Team muss erst gespeichert werden, um ID zu bekommen
-                    await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-                }
-                
-                // Team zur lokalen Liste hinzufügen
-                AllTeams.Add(team);
-            }
-
-            // Sicherstellen, dass Cup Teams initialisiert ist
-            cup.CupTeams ??= new List<Team>();
-            
-            // Team zum Cup hinzufügen, falls noch nicht vorhanden
-            if (!cup.CupTeams.Any(t => t.Id == team.Id))
-                cup.CupTeams.Add(team);
-
-            return team;
+            await LoadDataAsync();
         }
-
-        private Team FindOrCreateTeam(string name, Cup cup, WSBRacingDbContext context)
+        catch (Exception ex)
         {
-            if (string.IsNullOrWhiteSpace(name)) 
-                throw new ArgumentException("Team name cannot be empty", nameof(name));
-
-            var team = AllTeams.FirstOrDefault(t => t.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            if (team == null)
-            {
-                team = new Team { Name = name, Members = new List<Customer>() };
-                AllTeams.Add(team);
-                context.Teams.Add(team);
-            }
-
-            // Sicherstellen, dass Cup Teams initialisiert ist
-            cup.CupTeams ??= new List<Team>();
-            
-            // Team zum Cup hinzufügen, falls noch nicht vorhanden
-            if (!cup.CupTeams.Any(t => t.Id == team.Id || (t.Id == 0 && t.Name.Equals(team.Name, StringComparison.OrdinalIgnoreCase))))
-                cup.CupTeams.Add(team);
-
-            return team;
+            Snackbar.Add($"Fehler beim Löschen: {ex.Message}", Severity.Error);
         }
+    }
 
-        private static void EnsureMember(Team team, Customer cust)
+    private Color GetGroupColor(string? groupName)
+    {
+        return groupName switch
         {
-            if (team == null || cust == null) return;
+            "A" or "Schnell" => Color.Error,
+            "B" or "Mittel" => Color.Warning,
+            "C" or "Langsam" => Color.Success,
+            _ => Color.Default
+        };
+    }
 
-            team.Members ??= new List<Customer>();
-            if (!team.Members.Any(m => m.Id == cust.Id || (cust.Id == 0 && m == cust)))
-                team.Members.Add(cust);
-        }
-
-        private static void RemoveCustomerFromCup(Cup cup, Customer cust)
-        {
-            if (cup.CupTeams == null || cust == null) return;
-
-            foreach (var t in cup.CupTeams)
-            {
-                // Member entfernen (sowohl mit ID als auch mit Object-Referenz für neue Customers)
-                if (t.Members != null)
-                {
-                    var removedCount = t.Members.RemoveAll(m => 
-                        (cust.Id > 0 && m.Id == cust.Id) || 
-                        (cust.Id == 0 && ReferenceEquals(m, cust)));
-                    
-                    // Teamchef entfernen falls nötig
-                    if (removedCount > 0 && t.TeamChef != null && 
-                        ((cust.Id > 0 && t.TeamChef.Id == cust.Id) || 
-                         (cust.Id == 0 && ReferenceEquals(t.TeamChef, cust))))
-                    {
-                        t.TeamChef = null;
-                    }
-                }
-            }
-        }
+    public void Dispose()
+    {
+        _isDisposed = true;
+        try { _cts?.Cancel(); } catch { }
+        _cts?.Dispose();
+        _cts = null;
+        GC.SuppressFinalize(this);
     }
 }

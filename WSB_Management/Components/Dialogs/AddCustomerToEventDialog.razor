@@ -1,0 +1,221 @@
+@using MudBlazor
+@using WSB_Management.Models
+@using WSB_Management.Services
+@inject RaceService RaceService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Class="mr-2" /> Kunde zum Event hinzufügen
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            @* Kunde auswählen *@
+            <MudItem xs="12">
+                <MudAutocomplete T="Customer" Label="Kunde suchen" @bind-Value="SelectedCustomer"
+                                 SearchFunc="@SearchCustomers" ToStringFunc="@(c => c != null ? $"{c.Contact?.Surname} {c.Contact?.Firstname}" : "")"
+                                 Variant="Variant.Outlined" Dense="true" ShowProgressIndicator="true"
+                                 AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary">
+                    <ItemTemplate Context="customer">
+                        <div class="d-flex align-items-center gap-2">
+                            <MudAvatar Size="Size.Small" Color="Color.Primary">
+                                @(customer.Contact?.Surname?.FirstOrDefault())@(customer.Contact?.Firstname?.FirstOrDefault())
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.body1">@customer.Contact?.Surname @customer.Contact?.Firstname</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    Startnr: @(customer.Startnumber ?? "-") | @(customer.Gruppe?.Name ?? "-")
+                                </MudText>
+                            </div>
+                        </div>
+                    </ItemTemplate>
+                    <NoItemsTemplate>
+                        <MudText Color="Color.Secondary">Kein Kunde gefunden</MudText>
+                    </NoItemsTemplate>
+                </MudAutocomplete>
+            </MudItem>
+
+            @if (SelectedCustomer != null)
+            {
+                @* Kundeninformationen *@
+                <MudItem xs="12">
+                    <MudPaper Class="pa-3" Elevation="0" Style="background-color: #f5f5f5;">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Ausgewählter Kunde</MudText>
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>@SelectedCustomer.Contact?.Surname @SelectedCustomer.Contact?.Firstname</strong>
+                                <div class="text-muted">@SelectedCustomer.Mail</div>
+                            </div>
+                            <div class="text-end">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary">@(SelectedCustomer.Startnumber ?? "Keine Startnr.")</MudChip>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@(SelectedCustomer.Gruppe?.Name ?? "-")</MudChip>
+                            </div>
+                        </div>
+                    </MudPaper>
+                </MudItem>
+
+                @* Tage auswählen *@
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Tage buchen</MudText>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var day in CurrentEvent?.GetEventDays() ?? new List<DateTime>())
+                        {
+                            var dayPrice = DayPrices.FirstOrDefault(dp => dp.Date.Date == day.Date)?.StandardPrice ?? 220.00m;
+                            var isSelected = SelectedDays.Contains(day.Date);
+                            <MudChip T="DateTime" Value="@day.Date" Color="@(isSelected ? Color.Primary : Color.Default)"
+                                     Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@(() => ToggleDay(day.Date))">
+                                @Event.GetGermanDayName(day) @day.ToString("dd.MM") (@dayPrice.ToString("C0"))
+                            </MudChip>
+                        }
+                    </div>
+                </MudItem>
+
+                @* Status *@
+                <MudItem xs="12" md="6">
+                    <MudSelect T="ParticipationStatus" @bind-Value="SelectedStatus" Label="Status"
+                               Variant="Variant.Outlined" Dense="true">
+                        <MudSelectItem Value="ParticipationStatus.Registered">Angemeldet</MudSelectItem>
+                        <MudSelectItem Value="ParticipationStatus.Waitlist">Warteliste</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                @* Transponder *@
+                <MudItem xs="12" md="6">
+                    <MudSelect T="long?" @bind-Value="SelectedTransponderId" Label="Transponder"
+                               Variant="Variant.Outlined" Dense="true" Clearable="true">
+                        @foreach (var t in AvailableTransponders)
+                        {
+                            <MudSelectItem Value="@((long?)t.Id)">@t.Number - @t.Bezeichung</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* Optionen *@
+                <MudItem xs="12">
+                    <MudCheckBox T="bool" @bind-Value="HasInsurance" Label="Versicherung (15€)" Color="Color.Primary" />
+                    <MudCheckBox T="bool" @bind-Value="IsSeasonPass" Label="Jahreskarte (0€ pro Tag)" Color="Color.Primary" />
+                </MudItem>
+
+                @* Notizen *@
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="Notes" Label="Notizen" Variant="Variant.Outlined"
+                                  Lines="2" Placeholder="Optionale Notizen..." />
+                </MudItem>
+
+                @* Zusammenfassung *@
+                <MudItem xs="12">
+                    <MudPaper Class="pa-3" Elevation="1" Style="background-color: #e8f5e9;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <MudText Typo="Typo.subtitle1">Gesamtpreis:</MudText>
+                            <MudText Typo="Typo.h5" Color="Color.Success">@CalculateTotal().ToString("C2")</MudText>
+                        </div>
+                        @if (HasInsurance)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">inkl. Versicherung 15,00 €</MudText>
+                        }
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Abbrechen</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!CanSubmit)">
+            <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-1" /> Kunde hinzufügen
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance? MudDialog { get; set; }
+    
+    [Parameter] public Event? CurrentEvent { get; set; }
+    [Parameter] public List<Customer> AvailableCustomers { get; set; } = new();
+    [Parameter] public List<EventDayPrice> DayPrices { get; set; } = new();
+    [Parameter] public List<Transponder> AvailableTransponders { get; set; } = new();
+    
+    private Customer? SelectedCustomer { get; set; }
+    private HashSet<DateTime> SelectedDays { get; set; } = new();
+    private ParticipationStatus SelectedStatus { get; set; } = ParticipationStatus.Registered;
+    private long? SelectedTransponderId { get; set; }
+    private bool HasInsurance { get; set; }
+    private bool IsSeasonPass { get; set; }
+    private string Notes { get; set; } = string.Empty;
+    
+    private bool CanSubmit => SelectedCustomer != null && SelectedDays.Any();
+
+    private Task<IEnumerable<Customer>> SearchCustomers(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(AvailableCustomers.Take(20).AsEnumerable());
+        
+        var search = value.ToLower();
+        var results = AvailableCustomers
+            .Where(c => 
+                (c.Contact?.Surname?.ToLower().Contains(search) ?? false) ||
+                (c.Contact?.Firstname?.ToLower().Contains(search) ?? false) ||
+                (c.Startnumber?.ToLower().Contains(search) ?? false) ||
+                (c.Mail?.ToLower().Contains(search) ?? false))
+            .Take(20);
+        
+        return Task.FromResult(results);
+    }
+    
+    private void ToggleDay(DateTime day)
+    {
+        if (SelectedDays.Contains(day))
+            SelectedDays.Remove(day);
+        else
+            SelectedDays.Add(day);
+    }
+    
+    private decimal CalculateTotal()
+    {
+        if (IsSeasonPass) 
+            return HasInsurance ? 15.00m : 0.00m;
+        
+        decimal total = 0;
+        foreach (var day in SelectedDays)
+        {
+            var price = DayPrices.FirstOrDefault(dp => dp.Date.Date == day)?.StandardPrice ?? 220.00m;
+            total += price;
+        }
+        
+        if (HasInsurance) total += 15.00m;
+        
+        return total;
+    }
+    
+    private async Task Submit()
+    {
+        if (SelectedCustomer == null || CurrentEvent == null) return;
+        
+        // Create participation for each selected day
+        foreach (var day in SelectedDays)
+        {
+            var participation = new CostumerEvent
+            {
+                CustomerId = SelectedCustomer.Id,
+                EventId = CurrentEvent.Id,
+                ParticipationDate = day,
+                RegistrationDate = DateTime.Now,
+                Status = SelectedStatus,
+                TransponderId = SelectedTransponderId ?? SelectedCustomer.Transponder?.Id,
+                HasInsurance = HasInsurance,
+                IsSeasonPassBooking = IsSeasonPass,
+                IsPaid = false,
+                PaidAmount = 0,
+                Notes = Notes,
+                SpecialPrice = IsSeasonPass ? 0 : null
+            };
+            
+            await RaceService.AddParticipationAsync(participation);
+        }
+        
+        MudDialog?.Close(DialogResult.Ok(true));
+    }
+    
+    private void Cancel() => MudDialog?.Cancel();
+}

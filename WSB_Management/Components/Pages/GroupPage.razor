@@ -1,118 +1,160 @@
-﻿@using WSB_Management.Components.Customs
-@using WSB_Management.Components.Layout
-@using System.ComponentModel.DataAnnotations
-@using WSB_Management.Models
-@using Microsoft.AspNetCore.Components.Forms
-
 @page "/management/groups"
-@rendermode InteractiveServer
-@layout MainLayout
+@using WSB_Management.Models
+@using WSB_Management.Services
+@using MudBlazor
+
 
 <PageTitle>WSB-Sport - Gruppen</PageTitle>
-<HeadContent>
-    <link rel="stylesheet" href="@Assets["groups.css"]" />
-</HeadContent>
 
-<div class="gruppe-div">
-    <div class="gruppe-liste-header">
-        <p class="gruppe-titel">Liste aller Gruppen</p>
-    </div>
+<style>
+    .group-card { transition: all 0.2s; cursor: pointer; }
+    .group-card:hover { background-color: #e3f2fd !important; }
+    .group-card.selected { background-color: #bbdefb !important; border-left: 4px solid #1976d2; }
+</style>
 
-    <div class="grid-scroll-wrapper">
-        <Grid TItem="Gruppe"
-              @ref="grid"
-              Class="table table-hover table-bordered table-striped table-sm grid-compact"
-              AllowSorting="true"
-              AllowFiltering="true"
-              AllowSelection="true"
-              Responsive="true"
-              AllowPaging="false"
-              DataProvider="@GruppeDataProvider"
-              RowKeySelector="g => g.Id"
-              SelectionMode="GridSelectionMode.Single"
-              Style="height:43rem;"
-              SelectedItemsChanged="OnSelectedItemsChanged">
-
-            <GridColumns>
-                <GridColumn TItem="Gruppe" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id"
-                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                    @context.Id
-                </GridColumn>
-
-                <GridColumn TItem="Gruppe" HeaderText="Name" PropertyName="Name" SortKeySelector="x => x.Name"
-                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                    @context.Name
-                </GridColumn>
-
-                <GridColumn TItem="Gruppe" HeaderText="Max. Zeit" PropertyName="MaxTimelap" SortKeySelector="x => x.MaxTimelap"
-                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                    @if (context.MaxTimelap.HasValue)
-                    {
-                        @context.MaxTimelap.Value.ToString(@"mm\:ss\.ff")
-                    }
-                    else
-                    {
-                        <span class="text-muted">-</span>
-                    }
-                </GridColumn>
-
-                <GridColumn TItem="Gruppe" HeaderText="Aktionen" Filterable="false" Sortable="false"
-                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                    <button class="icon-btn tabel-del-btn"
-                            @onclick="() => DeleteGruppeAsync(context.Id)"
-                            @onclick:stopPropagation="true"
-                            title="Löschen">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                </GridColumn>
-            </GridColumns>
-        </Grid>
-    </div>
-</div>
-
-<div id="splitter"></div>
-
-<div class="card details-card">
-    <div class="card-header d-flex align-items-center justify-content-between">
-        <span class="fw-semibold">Gruppe bearbeiten</span>
-        <div class="button-group">
-            <Button Color="ButtonColor.Danger" Style="width:13rem;" @onclick="SaveGruppe">Speichern</Button>
-            <Button Color="ButtonColor.Warning" Style="width:13rem;" @onclick="AutoAssignCustomersToGroups">
-                Automatisch einteilen
-            </Button>
-        </div>
-    </div>
-
-    <div class="card-body" style="padding: 4px;">
-        <div class="row g-3 align-items-start">
-            <div class="col-md-6">
-                <label class="form-label">Gruppenname</label>
-                <input class="form-control" type="text" @bind="CurrentGruppe.Name" placeholder="Gruppenname eingeben" />
+<div class="container-fluid p-3">
+    @* Header *@
+    <MudPaper Class="pa-3 mb-3" Elevation="2">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Large" Color="Color.Primary" />
+                <div>
+                    <MudText Typo="Typo.h5" Class="fw-bold">Gruppen Verwaltung</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @Gruppen.Count Gruppen definiert
+                    </MudText>
+                </div>
             </div>
             
-            <div class="col-md-6">
-                <label class="form-label">Max. Zeit</label>
-                <TimeInput TValue="TimeOnly?"
-                           Value="MaxTime"
-                           ValueExpression="() => MaxTime"
-                           ValueChanged="(value) => MaxTime = value"
-                           Placeholder="z.B. 02:15"
-                           Format="mm:ss" />
+            <div class="d-flex gap-2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.AutoAwesome"
+                           OnClick="@AutoAssign">
+                    Auto-Zuweisung
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@AddNew">
+                    Neue Gruppe
+                </MudButton>
             </div>
-
-            @if (!string.IsNullOrWhiteSpace(Message))
-            {
-                <div class="col-12">
-                    <small class="text-muted" style="margin:0;">@Message</small>
-                </div>
-            }
-
-            @if (!string.IsNullOrWhiteSpace(AutoAssignMessage))
-            {
-                <div class="col-12">
-                    <small class="text-info" style="margin:0;">@AutoAssignMessage</small>
-                </div>
-            }
         </div>
+    </MudPaper>
+    
+    @* Info Alert für Auto-Zuweisung *@
+    @if (!string.IsNullOrWhiteSpace(AutoAssignMessage))
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-3" ShowCloseIcon="true"
+                  CloseIconClicked="@(() => AutoAssignMessage = null)">
+            @AutoAssignMessage
+        </MudAlert>
+    }
+    
+    <div class="row">
+        @* Liste *@
+        <div class="@(SelectedGruppe != null ? "col-12 col-md-6 col-lg-8" : "col-12")">
+            <MudPaper Class="pa-0" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                    <MudText Typo="Typo.h6">Gruppenliste</MudText>
+                </div>
+                
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Max. Rundenzeit</th>
+                            <th style="width: 100px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var gruppe in Gruppen)
+                        {
+                            var isSelected = SelectedGruppe?.Id == gruppe.Id;
+                            <tr class="group-card @(isSelected ? "selected" : "")"
+                                @onclick="@(() => Select(gruppe))"
+                                style="cursor: pointer;">
+                                <td><MudChip T="string" Size="Size.Small" Color="Color.Primary">@gruppe.Id</MudChip></td>
+                                <td>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetGroupColor(gruppe.Name)">
+                                        @gruppe.Name
+                                    </MudChip>
+                                </td>
+                                <td>
+                                    @if (gruppe.MaxTimelap.HasValue)
+                                    {
+                                        <span class="font-monospace">@gruppe.MaxTimelap.Value.ToString(@"m\:ss\.ff")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Keine Begrenzung</span>
+                                    }
+                                </td>
+                                <td @onclick:stopPropagation="true">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="@(() => Select(gruppe))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                   OnClick="@(() => Delete(gruppe.Id))" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+                
+                @if (!Gruppen.Any())
+                {
+                    <div class="text-center py-5 text-muted">
+                        <MudIcon Icon="@Icons.Material.Filled.GroupOff" Size="Size.Large" />
+                        <MudText>Keine Gruppen definiert</MudText>
+                    </div>
+                }
+            </MudPaper>
+        </div>
+        
+        @* Detail Panel *@
+        @if (SelectedGruppe != null)
+        {
+            <div class="col-12 col-md-6 col-lg-4 mt-3 mt-md-0">
+                <MudPaper Class="pa-4" Elevation="3" Style="border-left: 4px solid #1976d2;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <MudText Typo="Typo.h6">
+                            @(IsNew ? "Neue Gruppe" : "Gruppe bearbeiten")
+                        </MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@CloseDetail" />
+                    </div>
+                    
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudTextField T="string" @bind-Value="SelectedGruppe.Name" Label="Gruppenname"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          HelperText="z.B. A, B, C oder Schnell, Mittel, Langsam" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField T="string" @bind-Value="MaxTimeString" Label="Max. Rundenzeit"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          Placeholder="m:ss,hh" HelperText="z.B. 2:30,00 - Fahrer schneller als diese Zeit gehören in die Gruppe" />
+                        </MudItem>
+                    </MudGrid>
+                    
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+                        <MudText Typo="Typo.body2">
+                            Die Max. Rundenzeit wird für die automatische Gruppenzuweisung verwendet. 
+                            Fahrer mit einer besseren Zeit werden dieser Gruppe zugewiesen.
+                        </MudText>
+                    </MudAlert>
+                    
+                    <div class="d-flex gap-2 mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Save" OnClick="@Save">
+                            Speichern
+                        </MudButton>
+                    </div>
+                    
+                    @if (!string.IsNullOrWhiteSpace(Message))
+                    {
+                        <MudAlert Severity="@(Message.Contains("Fehler") ? Severity.Error : Severity.Success)" 
+                                  Class="mt-3" Dense="true">@Message</MudAlert>
+                    }
+                </MudPaper>
+            </div>
+        }
     </div>
 </div>

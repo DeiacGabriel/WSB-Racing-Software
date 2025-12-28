@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MudBlazor.Services;
 using WSB_Management.Components;
 using WSB_Management.Data;
 using WSB_Management.Models;
@@ -21,10 +22,13 @@ public class Program
             ServiceLifetime.Scoped);
             
         builder.Services.AddBlazorBootstrap();
+        builder.Services.AddMudServices();
         
         // Services
         builder.Services.AddScoped<EventService>();
-        builder.Services.AddScoped<WSB_Management.Services.CustomerService>();
+        builder.Services.AddScoped<CustomerService>();
+        builder.Services.AddScoped<RaceService>();
+        builder.Services.AddScoped<MasterDataService>();
         
         builder.Services.AddIdentity<Personal, IdentityRole<int>>(options =>
         {
@@ -60,14 +64,13 @@ public class Program
 
         app.UseHttpsRedirection();
         app.UseStaticFiles();
-
+        app.MapStaticAssets();
         app.UseAuthentication();
         app.UseAuthorization();
 
         app.UseAntiforgery();
 
-        app.MapRazorComponents<App>()
-            .AddInteractiveServerRenderMode();
+        app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
         app.Run();
     }

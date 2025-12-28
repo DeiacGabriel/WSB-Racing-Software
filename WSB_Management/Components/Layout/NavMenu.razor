@@ -1,150 +1,222 @@
 ﻿@using Microsoft.AspNetCore.Components.Routing
-@using System.Linq
 @using Microsoft.EntityFrameworkCore
 @using WSB_Management.Data
 @using WSB_Management.Models
 @using WSB_Management.Services
+@using MudBlazor
 @inject NavigationManager Nav
-@inject WSBRacingDbContext DbContext
+@inject IDbContextFactory<WSBRacingDbContext> DbFactory
 @inject EventService EventService
-@inherits LayoutComponentBase
 @implements IDisposable
 
-<div class="navbar-custom">
-    <NavLink href="/customer" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
-        <span class="material-symbols-outlined">group</span> Kunden
-    </NavLink>
-    <Dropdown Class="nav-item dropdown">
-        <DropdownToggleButton Class="@($"dropdown-toggle {(IsEventsActive ? "active" : "")}")">
-            <span class="material-symbols-outlined">assignment</span>
-            <span>Rennen</span>
-        </DropdownToggleButton>
+<MudAppBar Elevation="2" Dense="true" Class="navbar-mud" Style="background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);">
+    <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" 
+                   OnClick="@ToggleDrawer" Class="d-lg-none" />
+    
+    <MudImage Src="WSB_Logo.png" Alt="WSB Sport" Width="40" Height="40" Class="me-2" />
+    <MudText Typo="Typo.h6" Class="fw-bold d-none d-md-block">WSB Racing</MudText>
+    
+    <MudSpacer />
+    
+    @* Desktop Navigation *@
+    <div class="d-none d-lg-flex align-items-center gap-1">
+        
+        <MudButton Href="/customer" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.People"
+                   Class="@GetNavClass("/customer")">
+            KUNDEN
+        </MudButton>
+        
+        <MudMenu AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter"
+                 Class="@GetNavClass("/events")">
+            <ActivatorContent>
+                <MudButton Color="Color.Inherit" 
+                           StartIcon="@Icons.Material.Filled.SportsMotorsports"
+                           EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
+                    RENNEN
+                </MudButton>
+            </ActivatorContent>
+            <ChildContent>
+                @foreach (var ev in EventOptions)
+                {
+                    <MudMenuItem Href="@($"/events/{ev.Id}")">
+                        <div class="d-flex align-items-center gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Flag" Size="Size.Small" Color="Color.Primary" />
+                            @ev.Name
+                        </div>
+                    </MudMenuItem>
+                }
+                @if (!EventOptions.Any())
+                {
+                    <MudMenuItem Disabled="true">Keine Events vorhanden</MudMenuItem>
+                }
+                <MudDivider />
+                <MudMenuItem OnClick="@LoadEvents">
+                    <div class="d-flex align-items-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" />
+                        Aktualisieren
+                    </div>
+                </MudMenuItem>
+            </ChildContent>
+        </MudMenu>
+        
+        <MudButton Href="/calendar" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.CalendarMonth"
+                   Class="@GetNavClass("/calendar")">
+            KALENDER
+        </MudButton>
+        
+        <MudButton Href="/rankings" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.EmojiEvents"
+                   Class="@GetNavClass("/rankings")">
+            RANKINGS
+        </MudButton>
+        
+        <MudMenu AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter"
+                 Class="@GetNavClass("/management")">
+            <ActivatorContent>
+                <MudButton Color="Color.Inherit" 
+                           StartIcon="@Icons.Material.Filled.Storage"
+                           EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
+                    STAMMDATEN
+                </MudButton>
+            </ActivatorContent>
+            <ChildContent>
+                <MudMenuItem Href="/management/events">
+                    <div class="d-flex align-items-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Event" Size="Size.Small" Color="Color.Primary" />
+                        Events
+                    </div>
+                </MudMenuItem>
+                <MudMenuItem Href="/management/groups">
+                    <div class="d-flex align-items-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Small" Color="Color.Success" />
+                        Gruppen
+                    </div>
+                </MudMenuItem>
+                <MudMenuItem Href="/management/transponder">
+                    <div class="d-flex align-items-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Sensors" Size="Size.Small" Color="Color.Warning" />
+                        Transponder
+                    </div>
+                </MudMenuItem>
+                </ChildContent>
+        </MudMenu>
+        
+        <MudButton Href="/settings" 
+                   Color="Color.Inherit" 
+                   StartIcon="@Icons.Material.Filled.Settings"
+                   Class="@GetNavClass("/settings")">
+            EINSTELLUNGEN
+        </MudButton>
+    </div>
+</MudAppBar>
 
-        <DropdownMenu>
-            @foreach (var eventItem in EventOptions)
+@* Mobile Drawer *@
+<MudDrawer @bind-Open="_drawerOpen" Elevation="1" Variant="DrawerVariant.Temporary" ClipMode="DrawerClipMode.Always">
+    <MudDrawerHeader>
+        <div class="d-flex align-items-center gap-2">
+            <MudImage Src="WSB_Logo.png" Alt="WSB Sport" Width="40" Height="40" />
+            <MudText Typo="Typo.h6">WSB Racing</MudText>
+        </div>
+    </MudDrawerHeader>
+    <MudNavMenu>
+        <MudNavLink Href="/customer" Icon="@Icons.Material.Filled.People" Match="NavLinkMatch.Prefix">
+            Kunden
+        </MudNavLink>
+        
+        <MudNavGroup Title="Rennen" Icon="@Icons.Material.Filled.SportsMotorsports" Expanded="@_eventsExpanded">
+            @foreach (var ev in EventOptions)
             {
-                <DropdownItem To="@($"/events/{eventItem.Id}")"
-                              Type="DropdownItemType.Link"
-                              Class="nav-item"
-                              Active="@IsPathActive($"/events/{eventItem.Id}")">
-                    @eventItem.Name
-                </DropdownItem>
+                <MudNavLink Href="@($"/events/{ev.Id}")" Icon="@Icons.Material.Filled.Flag">
+                    @ev.Name
+                </MudNavLink>
             }
-            <DropdownDivider></DropdownDivider>
-            <DropdownItem Type="DropdownItemType.Button" @onclick="LoadEvents">
-                <span class="material-symbols-outlined">refresh</span> Reload
-            </DropdownItem>
-        </DropdownMenu>
-    </Dropdown>
-    <NavLink href="/calendar" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
-        <span class="material-symbols-outlined">
-            calendar_month
-        </span> Kalender
-    </NavLink>
-    @* <NavLink href="/events" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
-        <span class="material-symbols-outlined">tv</span> Events
-    </NavLink> *@
-    <NavLink href="/rankings" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
-        <span class="material-symbols-outlined">hourglass_empty</span> Rankings
-    </NavLink>
-    <NavLink href="/statistics" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
-        <span class="material-symbols-outlined">bar_chart</span> Statistiken
-    </NavLink>
-
-    <!-- Dropdown Stammdaten -->
-    <Dropdown Class="nav-item dropdown">
-        <DropdownToggleButton Class="@($"dropdown-toggle {(IsMgmtActive ? "active" : "")}")">
-            <span class="material-symbols-outlined">list</span>
-            <span>Stammdaten</span>
-        </DropdownToggleButton>
-
-        <DropdownMenu>
-            @foreach (var o in MgmtOptions)
-            {
-                <DropdownItem
-                    To="@o.Path"
-                    Type="DropdownItemType.Link"
-                    Class="nav-item"
-                    Active="@IsPathActive(o.Path)">
-                    @o.Label
-                </DropdownItem>
-            }
-        </DropdownMenu>
-    </Dropdown>
-
-    <NavLink href="/settings" class="nav-item" ActiveClass="active" Match="NavLinkMatch.Prefix">
-        <span class="material-symbols-outlined">settings</span> Einstellungen
-    </NavLink>
-</div>
+        </MudNavGroup>
+        
+        <MudNavLink Href="/calendar" Icon="@Icons.Material.Filled.CalendarMonth" Match="NavLinkMatch.Prefix">
+            Kalender
+        </MudNavLink>
+        
+        <MudNavLink Href="/rankings" Icon="@Icons.Material.Filled.EmojiEvents" Match="NavLinkMatch.Prefix">
+            Rankings
+        </MudNavLink>
+        
+        <MudNavGroup Title="Stammdaten" Icon="@Icons.Material.Filled.Storage" Expanded="@_mgmtExpanded">
+            <MudNavLink Href="/management/events" Icon="@Icons.Material.Filled.Event">Events</MudNavLink>
+            <MudNavLink Href="/management/groups" Icon="@Icons.Material.Filled.Groups">Gruppen</MudNavLink>
+            <MudNavLink Href="/management/transponder" Icon="@Icons.Material.Filled.Sensors">Transponder</MudNavLink>
+            <MudNavLink Href="/management/countries" Icon="@Icons.Material.Filled.Flag">Länder</MudNavLink>
+            <MudNavLink Href="/management/brands" Icon="@Icons.Material.Filled.DirectionsBike">Marken</MudNavLink>
+            <MudNavLink Href="/management/types" Icon="@Icons.Material.Filled.TwoWheeler">Motorrad Typen</MudNavLink>
+        </MudNavGroup>
+        
+        <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Settings" Match="NavLinkMatch.Prefix">
+            Einstellungen
+        </MudNavLink>
+    </MudNavMenu>
+</MudDrawer>
 
 @code {
-    // NavMenu(WSBRacingDbContext context)
-    // {
-    //     _context = context;
-    // }
-    private record MgmtItem(string Label, string Path);
-
-    private readonly MgmtItem[] MgmtOptions = new[] {
-        new MgmtItem("Events",      "/management/events"),
-        new MgmtItem("Gruppen",      "/management/groups"),
-        new MgmtItem("Transponder", "/management/transponder"),
-        new MgmtItem("Länder",      "/management/countries"),
-        new MgmtItem("Marken",      "/management/brands"),
-        new MgmtItem("Motorrad Typen", "/management/types"),
-    };
-
+    private bool _drawerOpen;
+    private bool _eventsExpanded = true;
+    private bool _mgmtExpanded;
     private List<Event> EventOptions = new();
-
-    private bool IsMgmtActive => new Uri(Nav.Uri).AbsolutePath
-        .StartsWith("/management", StringComparison.OrdinalIgnoreCase);
-
-    private bool IsEventsActive => new Uri(Nav.Uri).AbsolutePath
-        .StartsWith("/events", StringComparison.OrdinalIgnoreCase);
-
-    private bool IsPathActive(string path) =>
-        new Uri(Nav.Uri).AbsolutePath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
-
+    
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+    
+    private string GetNavClass(string path)
+    {
+        var currentPath = new Uri(Nav.Uri).AbsolutePath;
+        var isActive = currentPath.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+        return isActive ? "nav-active" : "";
+    }
+    
     protected override async Task OnInitializedAsync()
     {
         Nav.LocationChanged += HandleLocationChanged;
         EventService.EventsChanged += OnEventsChanged;
         await LoadEvents();
     }
-
+    
     private async Task LoadEvents()
     {
         try
         {
-            EventOptions = await DbContext.Events
+            await using var db = await DbFactory.CreateDbContextAsync();
+            EventOptions = await db.Events
                 .AsNoTracking()
                 .OrderBy(e => e.Validfrom)
                 .ToListAsync();
         }
-        catch (Exception)
+        catch
         {
             EventOptions = new List<Event>();
         }
     }
-
+    
     private async void OnEventsChanged()
     {
         await LoadEvents();
         await InvokeAsync(StateHasChanged);
     }
-
-    protected override void OnInitialized()
-    {
-        Nav.LocationChanged += HandleLocationChanged;
-    }
-
+    
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
     {
+        _drawerOpen = false;
         InvokeAsync(StateHasChanged);
     }
-
+    
     public void Dispose()
     {
         Nav.LocationChanged -= HandleLocationChanged;
         EventService.EventsChanged -= OnEventsChanged;
     }
 }
+
+<style>
+    .navbar-mud .nav-active {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        border-radius: 4px;
+    }
+    .navbar-mud .mud-button-root:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+</style>

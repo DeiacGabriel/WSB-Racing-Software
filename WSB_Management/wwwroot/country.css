@@ -13,7 +13,8 @@ input[type="checkbox"] {
   margin-right: 5rem;
   transform: scale(1.25);
 }
-button{
+.country-liste-header button,
+.country-item button{
     height: 35px;
     color: white;
     background-color: #C72E29;
@@ -21,14 +22,15 @@ button{
     border: black 2px solid;
     border-radius: 20px;
 }
-button:hover{
+.country-liste-header button:hover,
+.country-item button:hover{
     color: #C72E29;
     background-color: white;
 }
 img{
     width: 12px;
 }
-div {
+.country-container div {
     margin: 4px 0 2px 0;
 }
 p {

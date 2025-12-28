@@ -1,0 +1,171 @@
+@using WSB_Management.Models
+@using WSB_Management.Services
+@inject RaceService RaceService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h5" Class="d-flex align-items-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Email" Color="Color.Primary" />
+            Email senden - @Customer?.Contact?.Surname @Customer?.Contact?.Firstname
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="RecipientEmail" Label="Empfänger"
+                              Variant="Variant.Outlined" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.AlternateEmail" />
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudSelect T="EmailType" @bind-Value="SelectedEmailType" Label="Email Typ"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem Value="EmailType.Confirmation">Anmeldebestätigung</MudSelectItem>
+                    <MudSelectItem Value="EmailType.WaitlistOffer">Wartelisten-Angebot</MudSelectItem>
+                    <MudSelectItem Value="EmailType.Reminder">Zahlungserinnerung</MudSelectItem>
+                    <MudSelectItem Value="EmailType.Invoice">Rechnung</MudSelectItem>
+                    <MudSelectItem Value="EmailType.Custom">Benutzerdefiniert</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="Subject" Label="Betreff"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="Notes" Label="Zusätzliche Notizen"
+                              Variant="Variant.Outlined" Lines="3"
+                              HelperText="Diese Notizen werden der Standard-Email hinzugefügt" />
+            </MudItem>
+            
+            @if (SelectedEmailType == EmailType.Confirmation && CurrentEvent != null)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Info">
+                        <strong>Bestätigungsmail enthält:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Event: @CurrentEvent.Name (@CurrentEvent.Validfrom.ToString("dd.MM.yyyy") - @CurrentEvent.Validuntil.ToString("dd.MM.yyyy"))</li>
+                            <li>Gebuchte Tage: @string.Join(", ", BookedDays.Select(d => Event.GetGermanDayName(d)))</li>
+                            @if (HasSeasonPass)
+                            {
+                                <li>Jahreskarte aktiv</li>
+                            }
+                            @if (!string.IsNullOrEmpty(Notes))
+                            {
+                                <li>Hinweis: @Notes</li>
+                            }
+                        </ul>
+                    </MudAlert>
+                </MudItem>
+            }
+            
+            @* Email Historie *@
+            @if (EmailHistory.Any())
+            {
+                <MudItem xs="12">
+                    <MudExpansionPanels>
+                        <MudExpansionPanel Text="Email Historie">
+                            <MudSimpleTable Dense="true">
+                                <thead>
+                                    <tr>
+                                        <th>Datum</th>
+                                        <th>Typ</th>
+                                        <th>Betreff</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var email in EmailHistory.Take(10))
+                                    {
+                                        <tr>
+                                            <td>@email.SentDate.ToString("dd.MM.yy HH:mm")</td>
+                                            <td>@email.Type</td>
+                                            <td>@email.Subject</td>
+                                            <td>
+                                                <MudChip T="string" Size="Size.Small" 
+                                                         Color="@(email.Status == EmailStatus.Sent ? Color.Success : Color.Error)">
+                                                    @email.Status
+                                                </MudChip>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Abbrechen</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@SendEmail"
+                   StartIcon="@Icons.Material.Filled.Send" Disabled="@(!CanSend)">
+            Senden
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter] public Customer? Customer { get; set; }
+    [Parameter] public Event? CurrentEvent { get; set; }
+    [Parameter] public List<DateTime> BookedDays { get; set; } = new();
+    [Parameter] public bool HasSeasonPass { get; set; }
+    
+    private string RecipientEmail { get; set; } = string.Empty;
+    private string Subject { get; set; } = string.Empty;
+    private string Notes { get; set; } = string.Empty;
+    private EmailType SelectedEmailType { get; set; } = EmailType.Confirmation;
+    private List<EmailLog> EmailHistory { get; set; } = new();
+    
+    private bool CanSend => !string.IsNullOrWhiteSpace(RecipientEmail) && 
+                            RecipientEmail.Contains("@");
+    
+    protected override async Task OnInitializedAsync()
+    {
+        if (Customer != null)
+        {
+            RecipientEmail = Customer.Mail ?? string.Empty;
+            EmailHistory = await RaceService.GetCustomerEmailHistoryAsync(Customer.Id);
+        }
+        
+        UpdateSubject();
+    }
+    
+    private void UpdateSubject()
+    {
+        Subject = SelectedEmailType switch
+        {
+            EmailType.Confirmation => $"WSB-SPORT Bestätigung - Booking {CurrentEvent?.Name} {DateTime.Now.Year}",
+            EmailType.WaitlistOffer => $"WSB-SPORT Platz frei - {CurrentEvent?.Name}",
+            EmailType.Reminder => $"WSB-SPORT Zahlungserinnerung - {CurrentEvent?.Name}",
+            EmailType.Invoice => $"WSB-SPORT Rechnung - {CurrentEvent?.Name}",
+            _ => string.Empty
+        };
+    }
+    
+    private async Task SendEmail()
+    {
+        if (Customer == null) return;
+        
+        // TODO: Implement actual email sending
+        
+        // Log the email
+        await RaceService.LogEmailAsync(
+            Customer.Id,
+            CurrentEvent?.Id,
+            RecipientEmail,
+            SelectedEmailType,
+            Subject,
+            Notes,
+            "System" // TODO: Get current user
+        );
+        
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+    
+    private void Cancel() => MudDialog.Cancel();
+}

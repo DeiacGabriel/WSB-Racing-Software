@@ -1,0 +1,158 @@
+@using WSB_Management.Models
+@using WSB_Management.Services
+@inject RaceService RaceService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h5" Class="d-flex align-items-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Pin" Color="Color.Primary" />
+            Startnummern - @CurrentEvent?.Name
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            @* Startnummern Tabelle *@
+            <MudItem xs="12" md="8">
+                <MudPaper Class="pa-3" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-3">Startnummern Übersicht</MudText>
+                    
+                    <MudSimpleTable Dense="true" Hover="true" Style="max-height: 400px; overflow-y: auto;">
+                        <thead>
+                            <tr>
+                                <th>Start #</th>
+                                <th>Teilnehmer</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var sn in StartNumbers.OrderBy(s => s.Number))
+                            {
+                                <tr>
+                                    <td>
+                                        <MudChip T="string" Color="Color.Primary" Size="Size.Small">
+                                            @sn.Number
+                                        </MudChip>
+                                    </td>
+                                    <td>@sn.Customer?.Contact?.Surname @sn.Customer?.Contact?.Firstname</td>
+                                    <td>
+                                        @if (sn.IsAssigned)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" />
+                                        }
+                                    </td>
+                                    <td>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                       OnClick="@(() => EditStartNumber(sn))" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            </MudItem>
+            
+            @* Schnellzuweisung *@
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-3" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-3">Neue Zuweisung</MudText>
+                    
+                    <MudAutocomplete T="Customer" Label="Teilnehmer" @bind-Value="SelectedCustomer"
+                                     SearchFunc="@SearchCustomers" ToStringFunc="@(c => $"{c?.Contact?.Surname} {c?.Contact?.Firstname}")"
+                                     Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" />
+                    
+                    <MudTextField T="string" @bind-Value="NewStartNumber" Label="Startnummer"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" />
+                    
+                    @if (IsNumberTaken)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+                            Diese Nummer ist bereits vergeben!
+                        </MudAlert>
+                    }
+                    
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Add" OnClick="@AssignNumber"
+                               Disabled="@(SelectedCustomer == null || string.IsNullOrEmpty(NewStartNumber))">
+                        Zuweisen
+                    </MudButton>
+                </MudPaper>
+                
+                @* Legende *@
+                <MudPaper Class="pa-3 mt-3" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-2">Status</MudText>
+                    <div class="d-flex flex-wrap gap-2">
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small">Vergeben</MudChip>
+                        <MudChip T="string" Color="Color.Default" Size="Size.Small">Frei</MudChip>
+                    </div>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                        Gesamt: @StartNumbers.Count vergeben
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Schließen</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter] public Event? CurrentEvent { get; set; }
+    [Parameter] public List<Customer> AvailableCustomers { get; set; } = new();
+    
+    private List<StartNumber> StartNumbers { get; set; } = new();
+    private Customer? SelectedCustomer { get; set; }
+    private string NewStartNumber { get; set; } = string.Empty;
+    private bool IsNumberTaken { get; set; }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        if (CurrentEvent != null)
+        {
+            StartNumbers = await RaceService.GetEventStartNumbersAsync(CurrentEvent.Id);
+        }
+    }
+    
+    private async Task<IEnumerable<Customer>> SearchCustomers(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value))
+            return AvailableCustomers.Take(10);
+        
+        return AvailableCustomers
+            .Where(c => (c.Contact?.Surname?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                        (c.Contact?.Firstname?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false))
+            .Take(10);
+    }
+    
+    private async Task AssignNumber()
+    {
+        if (SelectedCustomer == null || CurrentEvent == null || string.IsNullOrEmpty(NewStartNumber))
+            return;
+        
+        // Check if taken
+        IsNumberTaken = await RaceService.IsStartNumberTakenAsync(CurrentEvent.Id, NewStartNumber, SelectedCustomer.Id);
+        if (IsNumberTaken) return;
+        
+        await RaceService.AssignStartNumberAsync(SelectedCustomer.Id, CurrentEvent.Id, NewStartNumber);
+        
+        // Refresh
+        StartNumbers = await RaceService.GetEventStartNumbersAsync(CurrentEvent.Id);
+        SelectedCustomer = null;
+        NewStartNumber = string.Empty;
+    }
+    
+    private void EditStartNumber(StartNumber sn)
+    {
+        SelectedCustomer = sn.Customer;
+        NewStartNumber = sn.Number;
+    }
+    
+    private void Cancel() => MudDialog.Close();
+}

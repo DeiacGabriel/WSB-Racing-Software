@@ -1,231 +1,232 @@
-﻿using BlazorBootstrap;
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using WSB_Management.Data;
 using WSB_Management.Models;
 using WSB_Management.Services;
 
-namespace WSB_Management.Components.Pages
+namespace WSB_Management.Components.Pages;
+
+public partial class EventPage : IDisposable
 {
-    public partial class EventPage : IDisposable, IAsyncDisposable
+    [Inject] private IDbContextFactory<WSBRacingDbContext> DbFactory { get; set; } = default!;
+    [Inject] private EventService EventService { get; set; } = default!;
+    
+    private bool _isDisposed;
+    private CancellationTokenSource? _cts = new();
+    
+    // Data
+    private List<Event> Events { get; set; } = new();
+    private Event? SelectedEvent { get; set; }
+    private bool IsNewEvent { get; set; }
+    private string? Message { get; set; }
+    
+    // Filter
+    private string? SearchText { get; set; }
+    private string? StatusFilter { get; set; }
+    
+    // Statistics
+    private int ActiveEventsCount => Events.Count(e => DateTime.Today >= e.Validfrom.Date && DateTime.Today <= e.Validuntil.Date);
+    private int UpcomingEventsCount => Events.Count(e => e.Validfrom.Date > DateTime.Today);
+    private int TotalCapacity => Events.Sum(e => e.maxPersons);
+    
+    // DatePicker Helpers
+    private DateTime? ValidFromPicker
     {
-        private bool _isDisposed;
-        private CancellationTokenSource? _cts = new();
-        
-        public void Dispose()
+        get => SelectedEvent?.Validfrom;
+        set { if (SelectedEvent != null && value.HasValue) SelectedEvent.Validfrom = value.Value; }
+    }
+    
+    private DateTime? ValidUntilPicker
+    {
+        get => SelectedEvent?.Validuntil;
+        set { if (SelectedEvent != null && value.HasValue) SelectedEvent.Validuntil = value.Value; }
+    }
+    
+    // Filtered Events
+    private IEnumerable<Event> FilteredEvents
+    {
+        get
         {
-            _isDisposed = true;
-            try { _cts?.Cancel(); } catch { }
-            _cts?.Dispose();
-            _cts = null;
-            GC.SuppressFinalize(this);
-        }
-        
-        public ValueTask DisposeAsync()
-        {
-            Dispose();
-            return ValueTask.CompletedTask;
-        }
-        
-        private void SafeStateHasChanged()
-        {
-            if (_isDisposed) return;
-            try
+            var query = Events.AsEnumerable();
+            
+            if (!string.IsNullOrWhiteSpace(SearchText))
             {
-                if (!_isDisposed)
-                    StateHasChanged();
+                var search = SearchText.ToLower();
+                query = query.Where(e => 
+                    e.Name?.ToLower().Contains(search) == true ||
+                    e.Id.ToString().Contains(search));
             }
-            catch (ObjectDisposedException) { }
-            catch (InvalidOperationException) { }
-        }
-        
-        private Grid<Event>? grid;
-
-        private Event? _selectedEvent;
-        public Event? SelectedEvent
-        {
-            get => _selectedEvent;
-            set
+            
+            if (!string.IsNullOrWhiteSpace(StatusFilter))
             {
-                if (_selectedEvent != value && value is not null)
+                query = StatusFilter switch
                 {
-                    _selectedEvent = value;
-                    SafeStateHasChanged();
+                    "aktiv" => query.Where(e => DateTime.Today >= e.Validfrom.Date && DateTime.Today <= e.Validuntil.Date),
+                    "kommend" => query.Where(e => e.Validfrom.Date > DateTime.Today),
+                    "beendet" => query.Where(e => e.Validuntil.Date < DateTime.Today),
+                    _ => query
+                };
+            }
+            
+            return query.OrderByDescending(e => e.Validfrom);
+        }
+    }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEventsAsync();
+    }
+    
+    private async Task LoadEventsAsync()
+    {
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync(_cts?.Token ?? CancellationToken.None);
+            Events = await db.Events
+                .AsNoTracking()
+                .OrderByDescending(e => e.Validfrom)
+                .ToListAsync(_cts?.Token ?? CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Message = $"Fehler beim Laden: {ex.Message}";
+        }
+    }
+    
+    private void AddNewEvent()
+    {
+        SelectedEvent = new Event
+        {
+            Validfrom = DateTime.Today,
+            Validuntil = DateTime.Today.AddDays(1),
+            Vat = 20.0
+        };
+        IsNewEvent = true;
+        Message = null;
+    }
+    
+    private void SelectEvent(Event ev)
+    {
+        SelectedEvent = new Event
+        {
+            Id = ev.Id,
+            Name = ev.Name,
+            Validfrom = ev.Validfrom,
+            Validuntil = ev.Validuntil,
+            maxPersons = ev.maxPersons,
+            Vat = ev.Vat
+        };
+        IsNewEvent = false;
+        Message = null;
+    }
+    
+    private void CloseDetail()
+    {
+        SelectedEvent = null;
+        IsNewEvent = false;
+        Message = null;
+    }
+    
+    private async Task SaveEvent()
+    {
+        if (_isDisposed || SelectedEvent == null) return;
+        
+        try
+        {
+            if (string.IsNullOrWhiteSpace(SelectedEvent.Name))
+            {
+                Message = "Fehler: Bitte Eventname eingeben.";
+                return;
+            }
+            
+            await using var db = await DbFactory.CreateDbContextAsync(_cts?.Token ?? CancellationToken.None);
+            
+            if (IsNewEvent)
+            {
+                db.Events.Add(SelectedEvent);
+            }
+            else
+            {
+                var existing = await db.Events.FindAsync(new object[] { SelectedEvent.Id }, _cts?.Token ?? CancellationToken.None);
+                if (existing != null)
+                {
+                    existing.Name = SelectedEvent.Name;
+                    existing.Validfrom = SelectedEvent.Validfrom;
+                    existing.Validuntil = SelectedEvent.Validuntil;
+                    existing.maxPersons = SelectedEvent.maxPersons;
+                    existing.Vat = SelectedEvent.Vat;
                 }
             }
+            
+            await db.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
+            
+            Message = $"Event '{SelectedEvent.Name}' gespeichert!";
+            EventService.NotifyEventsChanged();
+            
+            await LoadEventsAsync();
+            CloseDetail();
         }
-
-        private Event _newEvent = new();
-        public Event NewEvent
+        catch (Exception ex)
         {
-            get => _newEvent;
-            set
-            {
-                if (_newEvent != value)
-                {
-                    _newEvent = value;
-                    SafeStateHasChanged();
-                }
-            }
+            Message = $"Fehler beim Speichern: {ex.Message}";
         }
+    }
+    
+    private async Task DeleteEvent(long id)
+    {
+        if (_isDisposed) return;
         
-        private Event CurrentEvent => SelectedEvent ?? NewEvent;
-        public List<Event> events { get; set; } = new();
-        private string? Message { get; set; }
-        
-        // Cache für bessere Performance
-        private void InvalidateEventsCache()
+        try
         {
-            events = new List<Event>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
-        }
-
-        [Inject] public IDbContextFactory<WSBRacingDbContext> _contextFactory { get; set; } = default!;
-        [Inject] public EventService EventService { get; set; } = default!;
-
-        public async Task SaveEvent()
-        {
-            if (_isDisposed) return;
-
-            try
+            await using var db = await DbFactory.CreateDbContextAsync(_cts?.Token ?? CancellationToken.None);
+            var ev = await db.Events.FindAsync(new object[] { id }, _cts?.Token ?? CancellationToken.None);
+            
+            if (ev != null)
             {
-                // Basic Validation
-                if (string.IsNullOrWhiteSpace(CurrentEvent?.Name))
-                {
-                    Message = "Bitte Eventname eingeben.";
-                    SafeStateHasChanged();
-                    return;
-                }
-
-                var isNew = CurrentEvent.Id == 0;
+                db.Events.Remove(ev);
+                await db.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
                 
-                await using var context = await _contextFactory.CreateDbContextAsync();
-                if (isNew)
-                {
-                    context.Events.Add(CurrentEvent);
-                }
-                else
-                {
-                    context.Events.Update(CurrentEvent);
-                }
-
-                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                Message = $"Gespeichert: {CurrentEvent.Name}";
-                InvalidateEventsCache(); // Cache invalidieren für bessere Performance
-                
-                // NavMenu über Event-Änderung benachrichtigen
-                EventService.NotifyEventsChanged();
-
-                if (_isDisposed) return;
-
-                SelectedEvent = null;
-                NewEvent = new Event();
-
-                if (!_isDisposed && grid is not null)
-                {
-                    try
-                    {
-                        await grid.RefreshDataAsync();
-                    }
-                    catch (ObjectDisposedException) { return; }
-                    catch (InvalidOperationException) { return; }
-                    catch (TaskCanceledException) { return; }
-                    catch (Exception) { return; }
-                }
-
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (InvalidOperationException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception ex)
-            {
-                Message = $"Fehler beim Speichern: {ex.Message}";
-                SafeStateHasChanged();
-            }
-        }
-
-        private async Task<GridDataProviderResult<Event>> EventDataProvider(GridDataProviderRequest<Event> request)
-        {
-            if (_isDisposed) return new GridDataProviderResult<Event> { Data = new List<Event>(), TotalCount = 0 };
-
-            try
-            {
-                if (events is null || events.Count == 0)
-                {
-                    await using var context = await _contextFactory.CreateDbContextAsync();
-                    events = await context.Events
-                        .AsNoTracking()
-                        .OrderBy(e => e.Id)
-                        .ToListAsync(_cts?.Token ?? CancellationToken.None);
-                }
-
-                if (_isDisposed) return new GridDataProviderResult<Event> { Data = new List<Event>(), TotalCount = 0 };
-
-                return await Task.FromResult(request.ApplyTo(events));
-            }
-            catch (ObjectDisposedException) 
-            { 
-                return new GridDataProviderResult<Event> { Data = new List<Event>(), TotalCount = 0 }; 
-            }
-            catch (TaskCanceledException) 
-            { 
-                return new GridDataProviderResult<Event> { Data = new List<Event>(), TotalCount = 0 }; 
-            }
-        }
-
-        private void OnSelectedItemsChanged(IEnumerable<Event> selected)
-        {
-            var row = selected.FirstOrDefault();
-            SelectedEvent = row ?? new Event();
-            SafeStateHasChanged();
-        }
-
-        public async Task DeleteEventAsync(long? eventId)
-        {
-            if (_isDisposed) return;
-
-            try
-            {
-                await using var context = await _contextFactory.CreateDbContextAsync();
-                var eventItem = await context.Events.FirstOrDefaultAsync(e => e.Id == eventId, _cts?.Token ?? CancellationToken.None);
-                if (eventItem == null) return;
-
-                context.Events.Remove(eventItem);
-                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                InvalidateEventsCache(); // Cache invalidieren für bessere Performance
-                
-                // NavMenu über Event-Änderung benachrichtigen
                 EventService.NotifyEventsChanged();
                 
-                if (_isDisposed) return;
-                
-                if (SelectedEvent?.Id == eventId) SelectedEvent = null;
-                NewEvent = new Event();
-                
-                if (!_isDisposed && grid is not null)
-                {
-                    try
-                    {
-                        await grid.RefreshDataAsync();
-                    }
-                    catch (ObjectDisposedException) { return; }
-                    catch (InvalidOperationException) { return; }
-                    catch (TaskCanceledException) { return; }
-                    catch (Exception) { return; }
-                }
-
-                SafeStateHasChanged();
+                if (SelectedEvent?.Id == id)
+                    CloseDetail();
+                    
+                await LoadEventsAsync();
             }
-            catch (ObjectDisposedException) { return; }
-            catch (InvalidOperationException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception) { return; }
         }
+        catch (Exception ex)
+        {
+            Message = $"Fehler beim Löschen: {ex.Message}";
+        }
+    }
+    
+    private static string GetEventStatus(Event ev)
+    {
+        var today = DateTime.Today;
+        if (today >= ev.Validfrom.Date && today <= ev.Validuntil.Date)
+            return "Aktiv";
+        if (ev.Validfrom.Date > today)
+            return "Kommend";
+        return "Beendet";
+    }
+    
+    private static MudBlazor.Color GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Aktiv" => MudBlazor.Color.Success,
+            "Kommend" => MudBlazor.Color.Info,
+            "Beendet" => MudBlazor.Color.Default,
+            _ => MudBlazor.Color.Default
+        };
+    }
+    
+    public void Dispose()
+    {
+        _isDisposed = true;
+        try { _cts?.Cancel(); } catch { }
+        _cts?.Dispose();
+        _cts = null;
+        GC.SuppressFinalize(this);
     }
 }

@@ -1,0 +1,197 @@
+@using WSB_Management.Models
+@using WSB_Management.Services
+@inject RaceService RaceService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h5" Class="d-flex align-items-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.BarChart" Color="Color.Primary" />
+            Statistiken - @Stats?.EventName
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (Stats == null)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else
+        {
+            <MudGrid>
+                @* Übersichtskarten *@
+                <MudItem xs="12" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="2" Style="background: linear-gradient(135deg, #4CAF50, #45a049);">
+                        <MudText Typo="Typo.h3" Class="text-white">@Stats.TotalRegistrations</MudText>
+                        <MudText Typo="Typo.body1" Class="text-white">Angemeldet</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="2" Style="background: linear-gradient(135deg, #FF9800, #f57c00);">
+                        <MudText Typo="Typo.h3" Class="text-white">@Stats.TotalWaitlist</MudText>
+                        <MudText Typo="Typo.body1" Class="text-white">Warteliste</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="2" Style="background: linear-gradient(135deg, #9E9E9E, #757575);">
+                        <MudText Typo="Typo.h3" Class="text-white">@Stats.TotalAbsent</MudText>
+                        <MudText Typo="Typo.body1" Class="text-white">Abwesend</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudPaper Class="pa-4 text-center" Elevation="2" Style="background: linear-gradient(135deg, #2196F3, #1976D2);">
+                        <MudText Typo="Typo.h3" Class="text-white">@Stats.FreeSpots</MudText>
+                        <MudText Typo="Typo.body1" Class="text-white">Noch frei</MudText>
+                    </MudPaper>
+                </MudItem>
+                
+                @* Auslastung *@
+                <MudItem xs="12">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Class="mb-3">Auslastung</MudText>
+                        <MudProgressLinear Value="@Stats.OccupancyPercent" Color="@GetOccupancyColor(Stats.OccupancyPercent)" 
+                                           Size="Size.Large" Rounded="true" Class="mb-2">
+                            <MudText Typo="Typo.body2">@Stats.OccupancyPercent.ToString("F1")%</MudText>
+                        </MudProgressLinear>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            @Stats.TotalRegistrations von @Stats.MaxCapacity Plätzen belegt
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+                
+                @* Tagesstatistik *@
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Class="mb-3">Teilnehmer pro Tag</MudText>
+                        <MudSimpleTable Dense="true" Hover="true">
+                            <thead>
+                                <tr>
+                                    <th>Tag</th>
+                                    <th class="text-center">Angemeldet</th>
+                                    <th class="text-center">Warteliste</th>
+                                    <th class="text-center">Abwesend</th>
+                                    <th class="text-center">Zusatzbikes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var day in Stats.DayStatistics)
+                                {
+                                    <tr>
+                                        <td><strong>@Event.GetGermanDayName(day.Date)</strong> @day.Date.ToString("dd.MM")</td>
+                                        <td class="text-center">
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Success">@day.Registered</MudChip>
+                                        </td>
+                                        <td class="text-center">
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">@day.Waitlist</MudChip>
+                                        </td>
+                                        <td class="text-center">
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Default">@day.Absent</MudChip>
+                                        </td>
+                                        <td class="text-center">
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">@day.AdditionalBikes</MudChip>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    </MudPaper>
+                </MudItem>
+                
+                @* Markenverteilung *@
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Class="mb-3">Top Marken</MudText>
+                        @foreach (var brand in Stats.BrandDistribution.OrderByDescending(b => b.Value).Take(10))
+                        {
+                            var percent = Stats.TotalRegistrations > 0 ? (double)brand.Value * 100 / Stats.TotalRegistrations : 0;
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <MudText Typo="Typo.body2">@brand.Key</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@brand.Value</MudText>
+                                </div>
+                                <MudProgressLinear Value="@percent" Color="@GetBrandColor(brand.Key)" 
+                                                   Size="Size.Small" Rounded="true" />
+                            </div>
+                        }
+                    </MudPaper>
+                </MudItem>
+                
+                @* Gruppenverteilung *@
+                <MudItem xs="12">
+                    <MudPaper Class="pa-4" Elevation="2">
+                        <MudText Typo="Typo.h6" Class="mb-3">Gruppen Verteilung</MudText>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var group in Stats.GroupDistribution.OrderBy(g => g.Key))
+                            {
+                                <MudChip T="string" Color="@GetGroupColor(group.Key)" Size="Size.Medium">
+                                    @group.Key: @group.Value
+                                </MudChip>
+                            }
+                        </div>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Schließen</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@ExportStats"
+                   StartIcon="@Icons.Material.Filled.FileDownload">
+            Exportieren
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter] public long EventId { get; set; }
+    
+    private EventStatistics? Stats { get; set; }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        Stats = await RaceService.GetEventStatisticsAsync(EventId);
+    }
+    
+    private Color GetOccupancyColor(double percent)
+    {
+        if (percent >= 90) return Color.Error;
+        if (percent >= 75) return Color.Warning;
+        if (percent >= 50) return Color.Success;
+        return Color.Primary;
+    }
+    
+    private Color GetBrandColor(string brand)
+    {
+        return brand.ToUpper() switch
+        {
+            "DUCATI" => Color.Error,
+            "BMW" => Color.Info,
+            "YAMAHA" => Color.Primary,
+            "KAWASAKI" => Color.Success,
+            "SUZUKI" => Color.Warning,
+            "HONDA" => Color.Error,
+            "KTM" => Color.Warning,
+            "APRILIA" => Color.Error,
+            _ => Color.Default
+        };
+    }
+    
+    private Color GetGroupColor(string group)
+    {
+        return group.ToUpper() switch
+        {
+            var g when g.Contains("SCHNELL") => Color.Error,
+            var g when g.Contains("MITTEL") => Color.Warning,
+            var g when g.Contains("RACER") => Color.Info,
+            var g when g.Contains("INSTRUKTOR") => Color.Primary,
+            _ => Color.Success
+        };
+    }
+    
+    private void ExportStats()
+    {
+        // TODO: Implement export
+    }
+    
+    private void Cancel() => MudDialog.Close();
+}

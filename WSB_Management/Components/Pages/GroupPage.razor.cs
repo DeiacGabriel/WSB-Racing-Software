@@ -1,403 +1,169 @@
-﻿using BlazorBootstrap;
 using Microsoft.AspNetCore.Components;
-using Microsoft.EntityFrameworkCore;
-using WSB_Management.Data;
+using MudBlazor;
 using WSB_Management.Models;
+using WSB_Management.Services;
 
-namespace WSB_Management.Components.Pages
+namespace WSB_Management.Components.Pages;
+
+public partial class GroupPage : IDisposable
 {
-    public partial class GroupPage : IDisposable, IAsyncDisposable
+    private bool _isDisposed;
+    private CancellationTokenSource? _cts = new();
+
+    [Inject] public MasterDataService Service { get; set; } = default!;
+    [Inject] public ISnackbar Snackbar { get; set; } = default!;
+
+    private List<Gruppe> Gruppen { get; set; } = new();
+    private Gruppe? SelectedGruppe { get; set; }
+    private bool IsNew => SelectedGruppe?.Id == 0;
+    private string? Message { get; set; }
+    private string? AutoAssignMessage { get; set; }
+
+    private string? MaxTimeString
     {
-        private bool _isDisposed;
-        private CancellationTokenSource? _cts = new();
-        
-        public void Dispose()
+        get
         {
-            _isDisposed = true;
-            try { _cts?.Cancel(); } catch { }
-            _cts?.Dispose();
-            _cts = null;
-            GC.SuppressFinalize(this);
+            if (SelectedGruppe?.MaxTimelap == null) return null;
+            var ts = SelectedGruppe.MaxTimelap.Value;
+            return $"{ts.Minutes}:{ts.Seconds:D2},{ts.Milliseconds / 10:D2}";
         }
-        
-        public ValueTask DisposeAsync()
+        set
         {
-            Dispose();
-            return ValueTask.CompletedTask;
-        }
-        
-        private void SafeStateHasChanged()
-        {
-            if (_isDisposed) return;
-            try
-            {
-                if (!_isDisposed)
-                    StateHasChanged();
-            }
-            catch (ObjectDisposedException) { }
-            catch (InvalidOperationException) { }
-        }
-        
-        private Grid<Gruppe>? grid;
-
-        private Gruppe? _selectedGruppe;
-        public Gruppe? SelectedGruppe
-        {
-            get => _selectedGruppe;
-            set
-            {
-                if (_selectedGruppe != value && value is not null)
-                {
-                    _selectedGruppe = value;
-                    SafeStateHasChanged();
-                }
-            }
-        }
-
-        private Gruppe _newGruppe = new();
-        public Gruppe NewGruppe
-        {
-            get => _newGruppe;
-            set
-            {
-                if (_newGruppe != value)
-                {
-                    _newGruppe = value;
-                    SafeStateHasChanged();
-                }
-            }
-        }
-        
-        private Gruppe CurrentGruppe => SelectedGruppe ?? NewGruppe;
-        public List<Gruppe> gruppen { get; set; } = new();
-        private string? Message { get; set; }
-        private string? AutoAssignMessage { get; set; }
-        
-        // Für die Zeit-Eingabe mit TimeInput
-        private TimeOnly? _maxTime;
-        public TimeOnly? MaxTime
-        {
-            get => _maxTime;
-            set
-            {
-                _maxTime = value;
-                // TimeOnly zu TimeSpan konvertieren
-                if (value.HasValue)
-                {
-                    var time = value.Value;
-                    // TimeSpan aus Stunden, Minuten, Sekunden erstellen weil input nur ab Stunden geht
-                    CurrentGruppe.MaxTimelap = new TimeSpan(0, 0, time.Hour, time.Minute, time.Second);
-                }
-                else
-                {
-                    CurrentGruppe.MaxTimelap = null;
-                }
-                SafeStateHasChanged();
-            }
-        }
-        
-        // Cache für bessere Performance
-        private void InvalidateGruppenCache()
-        {
-            gruppen = new List<Gruppe>(); // Cache leeren, wird bei nächstem Zugriff neu geladen
-        }
-
-        [Inject] public IDbContextFactory<WSBRacingDbContext> _contextFactory { get; set; } = default!;
-
-        public async Task SaveGruppe()
-        {
-            if (_isDisposed) return;
-
-            try
-            {
-                // Validation
-                if (string.IsNullOrWhiteSpace(CurrentGruppe?.Name))
-                {
-                    Message = "Bitte Gruppenname eingeben.";
-                    SafeStateHasChanged();
-                    return;
-                }
-
-                var isNew = CurrentGruppe.Id == 0;
-                
-                await using var context = await _contextFactory.CreateDbContextAsync();
-                if (isNew)
-                {
-                    var newGruppe = new Gruppe
-                    {
-                        Name = CurrentGruppe.Name,
-                        MaxTimelap = CurrentGruppe.MaxTimelap
-                    };
-                    context.Gruppes.Add(newGruppe);
-                }
-                else
-                {
-                    var existingGruppe = await context.Gruppes
-                        .FirstOrDefaultAsync(g => g.Id == CurrentGruppe.Id, _cts?.Token ?? CancellationToken.None);
-                        
-                    if (existingGruppe == null)
-                    {
-                        Message = "❌ Gruppe nicht gefunden.";
-                        SafeStateHasChanged();
-                        return;
-                    }
-                    
-                    existingGruppe.Name = CurrentGruppe.Name;
-                    existingGruppe.MaxTimelap = CurrentGruppe.MaxTimelap;
-                    
-                    context.Gruppes.Update(existingGruppe);
-                }
-
-                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                Message = $"Gespeichert: {CurrentGruppe.Name}";
-                InvalidateGruppenCache(); // Cache invalidieren für bessere Performance
-
-                if (_isDisposed) return;
-
-                SelectedGruppe = null;
-                NewGruppe = new Gruppe();
-                _maxTime = null; // MaxTime auch zurücksetzen
-
-                if (!_isDisposed && grid is not null)
-                {
-                    try
-                    {
-                        await grid.RefreshDataAsync();
-                    }
-                    catch (ObjectDisposedException) { return; }
-                    catch (InvalidOperationException) { return; }
-                    catch (TaskCanceledException) { return; }
-                    catch (Exception) { return; }
-                }
-
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (InvalidOperationException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (DbUpdateException ex)
-            {
-                Message = $"❌ Datenbankfehler beim Speichern: {ex.GetBaseException().Message}";
-                SafeStateHasChanged();
-            }
-            catch (Exception ex)
-            {
-                Message = $"❌ Fehler beim Speichern: {ex.Message}";
-                SafeStateHasChanged();
-            }
-        }
-
-        private async Task<GridDataProviderResult<Gruppe>> GruppeDataProvider(GridDataProviderRequest<Gruppe> request)
-        {
-            if (_isDisposed) return new GridDataProviderResult<Gruppe> { Data = new List<Gruppe>(), TotalCount = 0 };
-
-            try
-            {
-                if (gruppen is null || gruppen.Count == 0)
-                {
-                    await using var context = await _contextFactory.CreateDbContextAsync();
-                    gruppen = await context.Gruppes
-                        .AsNoTracking()
-                        .OrderBy(g => g.Id)
-                        .ToListAsync(_cts?.Token ?? CancellationToken.None);
-                }
-
-                if (_isDisposed) return new GridDataProviderResult<Gruppe> { Data = new List<Gruppe>(), TotalCount = 0 };
-
-                return await Task.FromResult(request.ApplyTo(gruppen));
-            }
-            catch (ObjectDisposedException) 
-            { 
-                return new GridDataProviderResult<Gruppe> { Data = new List<Gruppe>(), TotalCount = 0 }; 
-            }
-            catch (TaskCanceledException) 
-            { 
-                return new GridDataProviderResult<Gruppe> { Data = new List<Gruppe>(), TotalCount = 0 }; 
-            }
-        }
-
-        private void OnSelectedItemsChanged(IEnumerable<Gruppe> selected)
-        {
-            var row = selected.FirstOrDefault();
-            SelectedGruppe = row ?? new Gruppe();
-            
-            // MaxTime aktualisieren wenn eine Gruppe ausgewählt wird
-            if (SelectedGruppe?.MaxTimelap.HasValue == true)
-            {
-                var timeSpan = SelectedGruppe.MaxTimelap.Value;
-                // TimeSpan zu TimeOnly konvertieren
-                _maxTime = new TimeOnly(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds, timeSpan.Milliseconds);
-            }
+            if (SelectedGruppe == null) return;
+            if (TryParseTime(value, out var ts))
+                SelectedGruppe.MaxTimelap = ts;
             else
-            {
-                _maxTime = null;
-            }
+                SelectedGruppe.MaxTimelap = null;
+        }
+    }
+
+    private static bool TryParseTime(string? input, out TimeSpan ts)
+    {
+        ts = TimeSpan.Zero;
+        if (string.IsNullOrWhiteSpace(input)) return false;
+
+        var pattern = @"^(\d+):(\d{2}),(\d{1,2})$";
+        var match = System.Text.RegularExpressions.Regex.Match(input, pattern);
+        if (!match.Success) return false;
+
+        var minutes = int.Parse(match.Groups[1].Value);
+        var seconds = int.Parse(match.Groups[2].Value);
+        var hundredths = match.Groups[3].Value;
+        if (hundredths.Length == 1) hundredths += "0";
+
+        ts = new TimeSpan(0, 0, minutes, seconds, int.Parse(hundredths) * 10);
+        return true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (_isDisposed) return;
+        try
+        {
+            Gruppen = await Service.GetGruppenAsync(_cts?.Token ?? CancellationToken.None);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private void Select(Gruppe gruppe)
+    {
+        SelectedGruppe = gruppe;
+        Message = null;
+    }
+
+    private void AddNew()
+    {
+        SelectedGruppe = new Gruppe();
+        Message = null;
+    }
+
+    private void CloseDetail()
+    {
+        SelectedGruppe = null;
+        Message = null;
+    }
+
+    private async Task Save()
+    {
+        if (_isDisposed || SelectedGruppe == null) return;
+
+        if (string.IsNullOrWhiteSpace(SelectedGruppe.Name))
+        {
+            Message = "Bitte Namen eingeben.";
+            return;
+        }
+
+        try
+        {
+            await Service.SaveGruppeAsync(SelectedGruppe, _cts?.Token ?? CancellationToken.None);
+            Snackbar.Add("Gruppe gespeichert!", Severity.Success);
+            Message = "Erfolgreich gespeichert!";
+            await LoadDataAsync();
             
-            SafeStateHasChanged();
+            if (IsNew) CloseDetail();
         }
-
-        public async Task DeleteGruppeAsync(long? gruppeId)
+        catch (Exception ex)
         {
-            if (_isDisposed) return;
-
-            try
-            {
-                await using var context = await _contextFactory.CreateDbContextAsync();
-                var gruppe = await context.Gruppes
-                    .FirstOrDefaultAsync(g => g.Id == gruppeId, _cts?.Token ?? CancellationToken.None);
-                    
-                if (gruppe == null) 
-                {
-                    Message = "❌ Gruppe nicht gefunden.";
-                    SafeStateHasChanged();
-                    return;
-                }
-
-                var customersInGroup = await context.Customers
-                    .Where(c => c.Gruppe != null && c.Gruppe.Id == gruppeId)
-                    .CountAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (customersInGroup > 0)
-                {
-                    Message = $"❌ Gruppe kann nicht gelöscht werden. {customersInGroup} Kunden sind noch dieser Gruppe zugeordnet.";
-                    SafeStateHasChanged();
-                    return;
-                }
-
-                context.Gruppes.Remove(gruppe);
-                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                Message = $"✅ Gruppe '{gruppe.Name}' erfolgreich gelöscht.";
-                InvalidateGruppenCache(); // Cache invalidieren für bessere Performance
-                
-                if (_isDisposed) return;
-                
-                if (SelectedGruppe?.Id == gruppeId) SelectedGruppe = null;
-                NewGruppe = new Gruppe();
-                _maxTime = null; // MaxTime auch zurücksetzen
-                
-                if (!_isDisposed && grid is not null)
-                {
-                    try
-                    {
-                        await grid.RefreshDataAsync();
-                    }
-                    catch (ObjectDisposedException) { return; }
-                    catch (InvalidOperationException) { return; }
-                    catch (TaskCanceledException) { return; }
-                    catch (Exception) { return; }
-                }
-
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (InvalidOperationException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (DbUpdateException ex)
-            {
-                Message = $"❌ Datenbankfehler beim Löschen: {ex.GetBaseException().Message}";
-                SafeStateHasChanged();
-            }
-            catch (Exception ex)
-            {
-                Message = $"❌ Fehler beim Löschen: {ex.Message}";
-                SafeStateHasChanged();
-            }
+            Message = $"Fehler: {ex.Message}";
+            Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
         }
-        
-        public async Task AutoAssignCustomersToGroups()
+    }
+
+    private async Task Delete(long id)
+    {
+        if (_isDisposed) return;
+
+        try
         {
-            if (_isDisposed) return;
-
-            try
-            {
-                AutoAssignMessage = "Starte automatische Gruppeneinteilung...";
-                SafeStateHasChanged();
-                
-                await using var context = await _contextFactory.CreateDbContextAsync();
-                var customers = await context.Customers
-                    .Include(c => c.Gruppe)
-                    .Where(c => c.BestTime.HasValue)
-                    .OrderBy(c => c.BestTime)
-                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                var sortedGroups = await context.Gruppes
-                    .Where(g => g.MaxTimelap.HasValue)
-                    .OrderBy(g => g.MaxTimelap)
-                    .ToListAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-                
-                if (!sortedGroups.Any())
-                {
-                    AutoAssignMessage = "Keine Gruppen mit definierten Zeitlimits gefunden.";
-                    SafeStateHasChanged();
-                    return;
-                }
-
-                int assignedCount = 0;
-
-                foreach (var customer in customers)
-                {
-                    if (_isDisposed) return;
-                    
-                    if (!customer.BestTime.HasValue) continue;
-                    
-                    // Finde die passende Gruppe für diese Zeit
-                    var targetGroup = FindBestGroupForTime(customer.BestTime.Value, sortedGroups);
-                    
-                    if (targetGroup != null && (customer.Gruppe == null || customer.Gruppe.Id != targetGroup.Id))
-                    {
-                        var trackedGroup = await context.Gruppes
-                            .FirstOrDefaultAsync(g => g.Id == targetGroup.Id, _cts?.Token ?? CancellationToken.None);
-                            
-                        if (trackedGroup != null)
-                        {
-                            customer.Gruppe = trackedGroup;
-                            context.Customers.Update(customer);
-                            assignedCount++;
-                        }
-                    }
-                }
-
-                if (assignedCount > 0)
-                {
-                    await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-                    AutoAssignMessage = $"✅ Erfolgreich {assignedCount} Kunden in neue Gruppen eingeteilt.";
-                }
-                else
-                {
-                    AutoAssignMessage = "ℹ️ Alle Kunden waren bereits in den richtigen Gruppen.";
-                }
-
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (InvalidOperationException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (DbUpdateException ex)
-            {
-                AutoAssignMessage = $"❌ Datenbankfehler bei der automatischen Einteilung: {ex.GetBaseException().Message}";
-                SafeStateHasChanged();
-            }
-            catch (Exception ex)
-            {
-                AutoAssignMessage = $"❌ Fehler bei der automatischen Einteilung: {ex.Message}";
-                SafeStateHasChanged();
-            }
+            await Service.DeleteGruppeAsync(id, _cts?.Token ?? CancellationToken.None);
+            Snackbar.Add("Gruppe gelöscht!", Severity.Warning);
+            if (SelectedGruppe?.Id == id) CloseDetail();
+            await LoadDataAsync();
         }
-        
-        private Gruppe? FindBestGroupForTime(TimeSpan customerTime, List<Gruppe> sortedGroups)
+        catch (Exception ex)
         {
-            // Finde die erste Gruppe, deren MaxTimelap >= der Kundenzeit ist
-            return sortedGroups.FirstOrDefault(g => g.MaxTimelap.HasValue && customerTime <= g.MaxTimelap.Value);
+            Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
         }
+    }
+
+    private async Task AutoAssign()
+    {
+        if (_isDisposed) return;
+
+        try
+        {
+            var count = await Service.AutoAssignCustomersToGroupsAsync(_cts?.Token ?? CancellationToken.None);
+            AutoAssignMessage = $"{count} Kunden wurden automatisch ihren Gruppen zugewiesen.";
+            Snackbar.Add(AutoAssignMessage, Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fehler bei der Auto-Zuweisung: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private Color GetGroupColor(string? name)
+    {
+        return name switch
+        {
+            "A" or "Schnell" => Color.Error,
+            "B" or "Mittel" => Color.Warning,
+            "C" or "Langsam" => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    public void Dispose()
+    {
+        _isDisposed = true;
+        try { _cts?.Cancel(); } catch { }
+        _cts?.Dispose();
+        _cts = null;
+        GC.SuppressFinalize(this);
     }
 }

@@ -1,135 +1,157 @@
-﻿@using WSB_Management.Components.Customs
-@using WSB_Management.Components.Layout
-@using System.ComponentModel.DataAnnotations
+@page "/management/countries"
 @using WSB_Management.Models
+@using WSB_Management.Services
+@using MudBlazor
 @using Microsoft.AspNetCore.Components.Forms
 
-@page "/management/countries"
-@rendermode InteractiveServer
-@layout MainLayout
 
-<PageTitle>WSB-Sport - Countries</PageTitle>
-<HeadContent>
-    <link rel="stylesheet" href="@Assets["country.css"]" />
-</HeadContent>
+<PageTitle>WSB-Sport - Länder</PageTitle>
 
-<div class="group-div">
-    <div class="country-liste-header">
-        <p class="country-titel">Liste aller Länder</p>
-    </div>
+<style>
+    .country-card { transition: all 0.2s; cursor: pointer; }
+    .country-card:hover { background-color: #e3f2fd !important; }
+    .country-card.selected { background-color: #bbdefb !important; border-left: 4px solid #1976d2; }
+    .flag-preview { height: 60px; border: 1px solid #e0e0e0; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+    .flag-preview img { max-height: 50px; max-width: 80px; }
+    .drop-zone { border: 2px dashed #ccc; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: #1976d2; background-color: #e3f2fd; }
+</style>
 
-    <div class="grid-scroll-wrapper">
-        <Grid TItem="Country"
-              @ref="grid"
-              Class="table table-hover table-bordered table-striped table-sm grid-compact"
-              AllowSorting="true"
-              AllowFiltering="true"
-              AllowSelection="true"
-              Responsive="true"
-              AllowPaging="false"
-              DataProvider="CountryDataProvider"
-              RowKeySelector="c => c.Id"
-              SelectionMode="GridSelectionMode.Single"
-              Style="height:20rem;"
-              SelectedItemsChanged="OnSelectedItemsChanged">
-
-            <GridColumns Style="height:35rem;">
-                <GridColumn TItem="Country" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id">
-                    @context.Id
-                </GridColumn>
-
-                <GridColumn TItem="Country" HeaderText="Kurz" PropertyName="Shorttxt" SortKeySelector="x => x.Shorttxt">
-                    @context.Shorttxt
-                </GridColumn>
-
-                <GridColumn TItem="Country" HeaderText="Lang" PropertyName="Longtxt" SortKeySelector="x => x.Longtxt">
-                    @context.Longtxt
-                </GridColumn>
-
-                <GridColumn TItem="Country" HeaderText="Flagge" PropertyName="FlagPath" Filterable="false" Sortable="false">
-                    <img src="@context.FlagPath" alt="@context.Longtxt" class="flag-table" />
-                </GridColumn>
-
-                <GridColumn TItem="Country" HeaderText="Aktionen" Filterable="false" Sortable="false">
-                    <button class="icon-btn tabel-del-btn"
-                            @onclick="() => DeleteCountryAsync(context.Id)"
-                            @onclick:stopPropagation="true"
-                            title="Löschen">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                </GridColumn>
-            </GridColumns>
-        </Grid>
-    </div>
-</div>
-
-<div id="splitter"></div>
-
-<div class="card details-card">
-    <div class="card-header d-flex align-items-center justify-content-between">
-        <span class="fw-semibold">Land bearbeiten</span>
-        <Button Color="ButtonColor.Danger" Style="width:13rem;" @onclick="SaveCountry">Speichern</Button>
-    </div>
-
-    <div class="card-body" style="padding: 4px;">
-        <div class="row g-3 align-items-start">
-            <div class="col-md-4">
-                <label class="form-label">Kurzname</label>
-                <input class="form-control" type="text" @bind="CurrentCountry.Shorttxt" placeholder="Shorttxt" />
-            </div>
-
-            <div class="col-md-8">
-                <label class="form-label">Langname</label>
-                <input class="form-control" type="text" @bind="CurrentCountry.Longtxt" placeholder="Longtxt" />
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">Ordner</label>
-                <input class="form-control" type="text" @bind="UploadSubFolder" placeholder="z. B. flags" readonly/>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">Dateiname (ohne .png)</label>
-                <input class="form-control" type="text" @bind="FileNameBase" placeholder="leer = Shorttxt" />
-            </div>
-
-            <div class="col-12">
-                <label class="form-label mb-1">Flagge hochladen</label>
-                <div class="drop-zone @(IsDragOver ? "drop-zone--over" : "")"
-                     @ondragover="e => IsDragOver = true"
-                     @ondragleave="e => IsDragOver = false"
-                     @ondrop="e => IsDragOver = false">
-                    <InputFile class="drop-input" OnChange="OnPngSelected" accept="image/png" />
-                    <div class="drop-hint text-center">
-                        <strong>PNG hierher ziehen</strong> oder klicken, um auszuwählen.
-                    </div>
+<div class="container-fluid p-3">
+    @* Header *@
+    <MudPaper Class="pa-3 mb-3" Elevation="2">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.Flag" Size="Size.Large" Color="Color.Primary" />
+                <div>
+                    <MudText Typo="Typo.h5" Class="fw-bold">Länder Verwaltung</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @Countries.Count Länder registriert
+                    </MudText>
                 </div>
             </div>
-
-            <div class="col-md-8">
-                <label class="form-label">FlagPath</label>
-                <input class="form-control font-monospace" type="text"
-                       @bind="CurrentCountry.FlagPath" placeholder="/flags/flagge-land.png" />
-            </div>
-
-            <div class="col-md-4" style="margin:0;">
-                <label class="form-label">Vorschau</label>
-                <div class="flag-preview">
-                    @if (!string.IsNullOrWhiteSpace(SelectedFlagPath))
-                    {
-                        <img src="@SelectedFlagPath" alt="Flagge" />
-                    }
-                    else
-                    {
-                        <span class="text-muted">Keine Vorschau verfügbar</span>
-                    }
-                </div>
-            </div>
-
-            @if (!string.IsNullOrWhiteSpace(Message))
-            {
-                <div class="col-12">
-                    <small class="text-muted" style="margin:0;">@Message</small>
-                </div>
-            }
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@AddNew">
+                Neues Land
+            </MudButton>
         </div>
+    </MudPaper>
+    
+    <div class="row">
+        @* Liste *@
+        <div class="@(SelectedCountry != null ? "col-12 col-md-6 col-lg-7" : "col-12")">
+            <MudPaper Class="pa-0" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                    <MudText Typo="Typo.h6">Länderliste</MudText>
+                    <MudTextField T="string" @bind-Value="SearchText" Placeholder="Suchen..."
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 200px;"
+                                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true" />
+                </div>
+                
+                <div style="max-height: 600px; overflow-y: auto;">
+                    <MudSimpleTable Dense="true" Hover="true">
+                        <thead class="sticky-top bg-white">
+                            <tr>
+                                <th style="width: 60px;">Flagge</th>
+                                <th style="width: 80px;">Kürzel</th>
+                                <th>Name</th>
+                                <th style="width: 60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var country in FilteredCountries)
+                            {
+                                var isSelected = SelectedCountry?.Id == country.Id;
+                                <tr class="country-card @(isSelected ? "selected" : "")"
+                                    @onclick="@(() => Select(country))"
+                                    style="cursor: pointer;">
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(country.FlagPath))
+                                        {
+                                            <img src="@country.FlagPath" alt="@country.Shorttxt" style="height: 20px;" />
+                                        }
+                                    </td>
+                                    <td><MudChip T="string" Size="Size.Small" Color="Color.Primary">@country.Shorttxt</MudChip></td>
+                                    <td>@country.Longtxt</td>
+                                    <td @onclick:stopPropagation="true">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                       OnClick="@(() => Delete(country.Id))" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </div>
+            </MudPaper>
+        </div>
+        
+        @* Detail Panel *@
+        @if (SelectedCountry != null)
+        {
+            <div class="col-12 col-md-6 col-lg-5 mt-3 mt-md-0">
+                <MudPaper Class="pa-4" Elevation="3" Style="border-left: 4px solid #1976d2;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <MudText Typo="Typo.h6">
+                            @(IsNew ? "Neues Land" : "Land bearbeiten")
+                        </MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@CloseDetail" />
+                    </div>
+                    
+                    <MudGrid>
+                        <MudItem xs="12" md="4">
+                            <MudTextField T="string" @bind-Value="SelectedCountry.Shorttxt" Label="Kürzel"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        </MudItem>
+                        <MudItem xs="12" md="8">
+                            <MudTextField T="string" @bind-Value="SelectedCountry.Longtxt" Label="Name"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField T="string" @bind-Value="SelectedCountry.FlagPath" Label="Flaggen-Pfad"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          HelperText="z.B. /flags/at.png" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.body2" Class="mb-2">Flagge hochladen</MudText>
+                            <div class="drop-zone @(IsDragOver ? "drag-over" : "")">
+                                <InputFile OnChange="@OnFileSelected" accept="image/png" class="d-none" id="flagInput" />
+                                <label for="flagInput" style="cursor: pointer; width: 100%;">
+                                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" />
+                                    <MudText Typo="Typo.body2">PNG hochladen</MudText>
+                                </label>
+                            </div>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudText Typo="Typo.body2" Class="mb-2">Vorschau</MudText>
+                            <div class="flag-preview">
+                                @if (!string.IsNullOrEmpty(SelectedCountry.FlagPath))
+                                {
+                                    <img src="@SelectedCountry.FlagPath" alt="Flagge" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Keine Flagge</MudText>
+                                }
+                            </div>
+                        </MudItem>
+                    </MudGrid>
+                    
+                    <div class="d-flex gap-2 mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Save" OnClick="@Save">
+                            Speichern
+                        </MudButton>
+                    </div>
+                    
+                    @if (!string.IsNullOrWhiteSpace(Message))
+                    {
+                        <MudAlert Severity="@(Message.Contains("Fehler") ? Severity.Error : Severity.Success)" 
+                                  Class="mt-3" Dense="true">@Message</MudAlert>
+                    }
+                </MudPaper>
+            </div>
+        }
     </div>
 </div>

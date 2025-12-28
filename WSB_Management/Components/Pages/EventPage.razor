@@ -1,130 +1,241 @@
-﻿@using WSB_Management.Components.Customs
-@using WSB_Management.Components.Layout
-@using System.ComponentModel.DataAnnotations
+﻿@page "/management/events"
 @using WSB_Management.Models
-@using Microsoft.AspNetCore.Components.Forms
-@using BlazorBootstrap
-@using Microsoft.EntityFrameworkCore
-@using WSB_Management.Data
-
-@page "/management/events"
-@rendermode InteractiveServer
-@layout MainLayout
-@implements IDisposable
-@implements IAsyncDisposable
+@using WSB_Management.Services
+@using MudBlazor
 
 <PageTitle>WSB-Sport - Events</PageTitle>
-<HeadContent>
-    <link rel="stylesheet" href="@Assets["event.css"]" />
-</HeadContent>
 
-<div class="group-div">
-    <div class="event-liste-header">
-        <p class="event-titel">Liste aller Events</p>
-    </div>
+<style>
+    .event-card { transition: all 0.2s; cursor: pointer; }
+    .event-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
+    .event-card.selected { background-color: #e3f2fd !important; border-left: 4px solid #1976d2; }
+    .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .stat-card-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .stat-card-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .stat-card-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .detail-panel { border-left: 4px solid #1976d2; }
+</style>
 
-    <div class="grid-scroll-wrapper">
-        <Grid TItem="Event"
-              @ref="grid"
-              Class="table table-hover table-bordered table-striped table-sm grid-compact"
-              GridContainerClass="event-grid-container"
-              AllowSorting="true"
-              AllowFiltering="true"
-              AllowSelection="true"
-              Responsive="true"
-              AllowPaging="false"
-              DataProvider="@EventDataProvider"
-              RowKeySelector="e => e.Id"
-              SelectionMode="GridSelectionMode.Single"
-              Style="height:43rem;"
-              SelectedItemsChanged="OnSelectedItemsChanged">
-
-            <GridColumns>
-                <GridColumn TItem="Event" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id"
-                            HeaderStyle="height:2rem; width:6rem;" CellStyle="height:2rem; width:6rem;">
-                    @context.Id
-                </GridColumn>
-
-                <GridColumn TItem="Event" HeaderText="Name" PropertyName="Name" SortKeySelector="x => x.Name"
-                            HeaderStyle="height:2rem; width:6rem;" CellStyle="height:2rem; width:6rem;">
-                    @context.Name
-                </GridColumn>
-
-                <GridColumn TItem="Event" HeaderText="Gültig von" PropertyName="Validfrom" SortKeySelector="x => x.Validfrom"
-                            HeaderStyle="height:2rem; width:8rem;" CellStyle="height:2rem; width:8rem;">
-                    @context.Validfrom.ToString("dd.MM.yyyy")
-                </GridColumn>
-
-                <GridColumn TItem="Event" HeaderText="Gültig bis" PropertyName="Validuntil" SortKeySelector="x => x.Validuntil"
-                            HeaderStyle="height:2rem; width:8rem;" CellStyle="height:2rem; width:8rem;">
-                    @context.Validuntil.ToString("dd.MM.yyyy")
-                </GridColumn>
-
-                <GridColumn TItem="Event" HeaderText="Max Personen" PropertyName="maxPersons" SortKeySelector="x => x.maxPersons"
-                            HeaderStyle="height:2rem; width:9rem;" CellStyle="height:2rem; width:9rem;">
-                    @context.maxPersons
-                </GridColumn>
-
-                <GridColumn TItem="Event" HeaderText="MwSt %" PropertyName="Vat" SortKeySelector="x => x.Vat"
-                            HeaderStyle="height:2rem; width:6rem;" CellStyle="height:2rem; width:6rem;">
-                    @context.Vat.ToString("F2")%
-                </GridColumn>
-
-                <GridColumn TItem="Event" HeaderText="Aktionen" Filterable="false" Sortable="false"
-                            HeaderStyle="height:2rem; width:5rem;" CellStyle="height:2rem; width:5rem;">
-                    <button class="icon-btn tabel-del-btn" style="width:100%;"
-                            @onclick="() => DeleteEventAsync(context.Id)"
-                            @onclick:stopPropagation="true"
-                            title="Löschen">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                </GridColumn>
-            </GridColumns>
-        </Grid>
-    </div>
-</div>
-
-<div id="splitter"></div>
-
-<div class="card details-card">
-    <div class="card-header d-flex align-items-center justify-content-between">
-        <span class="fw-semibold">Event bearbeiten</span>
-        <Button Color="ButtonColor.Danger" Style="width:13rem;" @onclick="SaveEvent">Speichern</Button>
-    </div>
-
-    <div class="card-body" style="padding: 4px;">
-        <div class="row g-3 align-items-start">
-            <div class="col-md-6">
-                <label class="form-label">Eventname</label>
-                <input class="form-control" type="text" @bind="CurrentEvent.Name" placeholder="Eventname eingeben" />
-            </div>
-
-            <div class="col-md-3">
-                <label class="form-label">Gültig von</label>
-                <input class="form-control" type="date" @bind="CurrentEvent.Validfrom" />
-            </div>
-
-            <div class="col-md-3">
-                <label class="form-label">Gültig bis</label>
-                <input class="form-control" type="date" @bind="CurrentEvent.Validuntil" />
-            </div>
-
-            <div class="col-md-6">
-                <label class="form-label">Max. Personen</label>
-                <input class="form-control" type="number" @bind="CurrentEvent.maxPersons" placeholder="Max. Anzahl Personen" />
-            </div>
-
-            <div class="col-md-6">
-                <label class="form-label">MwSt (%)</label>
-                <input class="form-control" type="number" step="0.01" @bind="CurrentEvent.Vat" placeholder="Mehrwertsteuersatz" />
-            </div>
-
-            @if (!string.IsNullOrWhiteSpace(Message))
-            {
-                <div class="col-12">
-                    <small class="text-muted" style="margin:0;">@Message</small>
+<div class="container-fluid p-3">
+    @* Header *@
+    <MudPaper Class="pa-3 mb-3" Elevation="2">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.Event" Size="Size.Large" Color="Color.Primary" />
+                <div>
+                    <MudText Typo="Typo.h5" Class="fw-bold">Event Verwaltung</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @Events.Count Events registriert
+                    </MudText>
                 </div>
-            }
+            </div>
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@AddNewEvent">
+                Neues Event
+            </MudButton>
         </div>
+    </MudPaper>
+    
+    @* Statistik Karten *@
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <MudPaper Class="pa-3 stat-card text-white" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <MudText Typo="Typo.h4" Class="fw-bold">@Events.Count</MudText>
+                        <MudText Typo="Typo.body2">Events gesamt</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.Event" Size="Size.Large" Style="opacity: 0.6;" />
+                </div>
+            </MudPaper>
+        </div>
+        <div class="col-6 col-md-3">
+            <MudPaper Class="pa-3 stat-card-success text-white" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <MudText Typo="Typo.h4" Class="fw-bold">@ActiveEventsCount</MudText>
+                        <MudText Typo="Typo.body2">Aktive Events</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Size="Size.Large" Style="opacity: 0.6;" />
+                </div>
+            </MudPaper>
+        </div>
+        <div class="col-6 col-md-3">
+            <MudPaper Class="pa-3 stat-card-warning text-white" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <MudText Typo="Typo.h4" Class="fw-bold">@UpcomingEventsCount</MudText>
+                        <MudText Typo="Typo.body2">Kommende Events</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.Upcoming" Size="Size.Large" Style="opacity: 0.6;" />
+                </div>
+            </MudPaper>
+        </div>
+        <div class="col-6 col-md-3">
+            <MudPaper Class="pa-3 stat-card-info text-white" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <MudText Typo="Typo.h4" Class="fw-bold">@TotalCapacity</MudText>
+                        <MudText Typo="Typo.body2">Gesamtkapazität</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Style="opacity: 0.6;" />
+                </div>
+            </MudPaper>
+        </div>
+    </div>
+    
+    <div class="row">
+        @* Eventliste *@
+        <div class="@(SelectedEvent != null ? "col-12 col-lg-7" : "col-12")">
+            <MudPaper Class="pa-0" Elevation="2">
+                @* Toolbar *@
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-2">
+                    <MudText Typo="Typo.h6">Eventliste</MudText>
+                    <div class="d-flex gap-2 align-items-center">
+                        <MudTextField T="string" @bind-Value="SearchText" Placeholder="Suchen..."
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 200px;"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Immediate="true" DebounceInterval="300" />
+                        <MudSelect T="string" @bind-Value="StatusFilter" Label="Status" Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" Style="width: 140px;">
+                            <MudSelectItem Value="@((string?)null)">Alle</MudSelectItem>
+                            <MudSelectItem Value="@("aktiv")">Aktiv</MudSelectItem>
+                            <MudSelectItem Value="@("kommend")">Kommend</MudSelectItem>
+                            <MudSelectItem Value="@("beendet")">Beendet</MudSelectItem>
+                        </MudSelect>
+                    </div>
+                </div>
+                
+                @* Tabelle *@
+                <div style="max-height: 500px; overflow-y: auto;">
+                    <MudSimpleTable Dense="true" Hover="true" Class="mb-0">
+                        <thead class="sticky-top bg-white" style="z-index: 1;">
+                            <tr>
+                                <th style="width: 60px;">ID</th>
+                                <th>Name</th>
+                                <th style="width: 120px;">Von</th>
+                                <th style="width: 120px;">Bis</th>
+                                <th style="width: 100px;">Max. Pers.</th>
+                                <th style="width: 80px;">MwSt</th>
+                                <th style="width: 100px;">Status</th>
+                                <th style="width: 80px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ev in FilteredEvents)
+                            {
+                                var isSelected = SelectedEvent?.Id == ev.Id;
+                                var status = GetEventStatus(ev);
+                                <tr class="event-card @(isSelected ? "selected" : "")"
+                                    @onclick="@(() => SelectEvent(ev))"
+                                    style="cursor: pointer;">
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Primary">@ev.Id</MudChip>
+                                    </td>
+                                    <td class="fw-bold">@ev.Name</td>
+                                    <td>@ev.Validfrom.ToString("dd.MM.yyyy")</td>
+                                    <td>@ev.Validuntil.ToString("dd.MM.yyyy")</td>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                            @ev.maxPersons
+                                        </MudChip>
+                                    </td>
+                                    <td>@ev.Vat.ToString("F2")%</td>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(status)">
+                                            @status
+                                        </MudChip>
+                                    </td>
+                                    <td @onclick:stopPropagation="true">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                       OnClick="@(() => DeleteEvent(ev.Id))" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </div>
+                
+                @if (!FilteredEvents.Any())
+                {
+                    <div class="text-center py-5 text-muted">
+                        <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" />
+                        <MudText>Keine Events gefunden</MudText>
+                    </div>
+                }
+            </MudPaper>
+        </div>
+        
+        @* Detail Panel *@
+        @if (SelectedEvent != null)
+        {
+            <div class="col-12 col-lg-5 mt-3 mt-lg-0">
+                <MudPaper Class="pa-4 detail-panel" Elevation="3">
+                    @* Header *@
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="d-flex align-items-center gap-2">
+                            <MudAvatar Color="@GetStatusColor(GetEventStatus(SelectedEvent))" Size="Size.Large">
+                                <MudIcon Icon="@Icons.Material.Filled.Event" />
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.h6">
+                                    @(IsNewEvent ? "Neues Event" : SelectedEvent.Name)
+                                </MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    @(IsNewEvent ? "Neu erstellen" : $"ID: {SelectedEvent.Id}")
+                                </MudText>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save"
+                                       OnClick="@SaveEvent">Speichern</MudButton>
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@CloseDetail" />
+                        </div>
+                    </div>
+                    
+                    @* Formular *@
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudTextField T="string" @bind-Value="SelectedEvent.Name" Label="Eventname"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          Required="true" RequiredError="Name ist erforderlich" />
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudDatePicker @bind-Date="ValidFromPicker" Label="Gültig von"
+                                           Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd.MM.yyyy" />
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudDatePicker @bind-Date="ValidUntilPicker" Label="Gültig bis"
+                                           Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd.MM.yyyy" />
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudNumericField T="int" @bind-Value="SelectedEvent.maxPersons" Label="Max. Personen"
+                                             Variant="Variant.Outlined" Margin="Margin.Dense"
+                                             Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.People" />
+                        </MudItem>
+                        
+                        <MudItem xs="12" md="6">
+                            <MudNumericField T="double" @bind-Value="SelectedEvent.Vat" Label="MwSt (%)"
+                                             Variant="Variant.Outlined" Margin="Margin.Dense"
+                                             Adornment="Adornment.End" AdornmentText="%" Step="0.5" />
+                        </MudItem>
+                    </MudGrid>
+                    
+                    @* Message *@
+                    @if (!string.IsNullOrWhiteSpace(Message))
+                    {
+                        <MudAlert Severity="@(Message.Contains("Fehler") ? Severity.Error : Severity.Success)" 
+                                  Class="mt-3" Variant="Variant.Filled" ShowCloseIcon="true"
+                                  CloseIconClicked="@(() => Message = null)">
+                            @Message
+                        </MudAlert>
+                    }
+                </MudPaper>
+            </div>
+        }
     </div>
 </div>

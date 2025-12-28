@@ -1,326 +1,146 @@
-﻿using BlazorBootstrap;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
-using Microsoft.AspNetCore.Components.Server.Circuits;
-using Microsoft.EntityFrameworkCore;
-using WSB_Management.Data;
+using MudBlazor;
 using WSB_Management.Models;
+using WSB_Management.Services;
 
-namespace WSB_Management.Components.Pages
+namespace WSB_Management.Components.Pages;
+
+public partial class CountryPage : IDisposable
 {
-    public partial class CountryPage : IDisposable, IAsyncDisposable
+    private bool _isDisposed;
+    private CancellationTokenSource? _cts = new();
+
+    [Inject] public MasterDataService Service { get; set; } = default!;
+    [Inject] public ISnackbar Snackbar { get; set; } = default!;
+    [Inject] public IWebHostEnvironment Environment { get; set; } = default!;
+
+    private List<Country> Countries { get; set; } = new();
+    private Country? SelectedCountry { get; set; }
+    private bool IsNew => SelectedCountry?.Id == 0;
+    private string? Message { get; set; }
+    private string? SearchText { get; set; }
+    private bool IsDragOver { get; set; }
+
+    private IEnumerable<Country> FilteredCountries => string.IsNullOrWhiteSpace(SearchText)
+        ? Countries
+        : Countries.Where(c => 
+            (c.Longtxt?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (c.Shorttxt?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
     {
-        private bool _isDisposed;
-        private CancellationTokenSource? _cts = new();
-        public void Dispose()
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (_isDisposed) return;
+        try
         {
-            _isDisposed = true;
-            try { _cts?.Cancel(); } catch { }
-            _cts?.Dispose();
-            _cts = null;
-            GC.SuppressFinalize(this);
+            Countries = await Service.GetCountriesAsync(_cts?.Token ?? CancellationToken.None);
         }
-        public ValueTask DisposeAsync()
+        catch (OperationCanceledException) { }
+    }
+
+    private void Select(Country country)
+    {
+        SelectedCountry = country;
+        Message = null;
+    }
+
+    private void AddNew()
+    {
+        SelectedCountry = new Country();
+        Message = null;
+    }
+
+    private void CloseDetail()
+    {
+        SelectedCountry = null;
+        Message = null;
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        if (SelectedCountry == null) return;
+
+        var file = e.File;
+        if (file.ContentType != "image/png")
         {
-            Dispose();
-            return ValueTask.CompletedTask;
+            Message = "Bitte nur PNG-Dateien hochladen.";
+            return;
         }
-        private void SafeStateHasChanged()
+
+        try
         {
-            if (_isDisposed) return;
-            try
-            {
-                if (!_isDisposed)
-                    StateHasChanged();
-            }
-            catch (ObjectDisposedException) { }
-            catch (InvalidOperationException) { }
-        }
-        private Grid<Country>? grid;
+            var fileName = $"{SelectedCountry.Shorttxt?.ToLower() ?? "flag"}.png";
+            var path = Path.Combine(Environment.WebRootPath, "flags", fileName);
+            
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
-        private Country? _selectedCountry;
-        public Country? SelectedCountry
+            await using var stream = file.OpenReadStream();
+            await using var fileStream = new FileStream(path, FileMode.Create);
+            await stream.CopyToAsync(fileStream);
+
+            SelectedCountry.FlagPath = $"/flags/{fileName}";
+            Snackbar.Add("Flagge hochgeladen!", Severity.Success);
+        }
+        catch (Exception ex)
         {
-            get => _selectedCountry;
-            set
-            {
-                if (_selectedCountry != value && value is not null)
-                {
-                    _selectedCountry = value;
-                    SafeStateHasChanged();
-                }
-            }
+            Message = $"Fehler beim Upload: {ex.Message}";
         }
+    }
 
-        private Country _newCountry = new();
-        public Country NewCountry
+    private async Task Save()
+    {
+        if (_isDisposed || SelectedCountry == null) return;
+
+        if (string.IsNullOrWhiteSpace(SelectedCountry.Shorttxt))
         {
-            get => _newCountry;
-            set
-            {
-                if (_newCountry != value)
-                {
-                    _newCountry = value;
-                    SafeStateHasChanged();
-                }
-            }
+            Message = "Bitte Kürzel eingeben.";
+            return;
         }
 
-        private Country CurrentCountry => SelectedCountry ?? NewCountry;
-        public List<Country> countries { get; set; } = new();
-
-        // Cache invalidieren
-        private void InvalidateCountriesCache()
+        try
         {
-            countries = new List<Country>();
+            await Service.SaveCountryAsync(SelectedCountry, _cts?.Token ?? CancellationToken.None);
+            Snackbar.Add("Land gespeichert!", Severity.Success);
+            Message = "Erfolgreich gespeichert!";
+            await LoadDataAsync();
+            
+            if (IsNew) CloseDetail();
         }
-
-        [Inject] private IWebHostEnvironment Env { get; set; } = default!;
-        private string UploadSubFolder { get; set; } = "flags";
-        private string? _previousFlagPath;
-
-        private bool IsDragOver { get; set; }
-        private string? Message { get; set; }
-        private const long MaxFileSize = 20 * 1024 * 1024;
-
-        private string SelectedFlagPath => CurrentCountry?.FlagPath ?? "";
-
-        private string? _fileNameBase;
-        public string? FileNameBase { 
-            get => _fileNameBase; 
-            set 
-            { 
-                if (_fileNameBase != value)
-                {
-                    _fileNameBase = value;
-                    CurrentCountry.UpdateFlagPath(_fileNameBase ?? "");
-                    SafeStateHasChanged();
-                }
-            } 
-        }
-
-        [Inject] public IDbContextFactory<WSBRacingDbContext> _contextFactory { get; set; } = default!;
-
-        public async Task SaveCountry()
+        catch (Exception ex)
         {
-            if (_isDisposed) return;
-
-            try
-            {
-                // Validierung
-                if (string.IsNullOrWhiteSpace(CurrentCountry?.Shorttxt) &&
-                    string.IsNullOrWhiteSpace(CurrentCountry?.Longtxt))
-                {
-                    Message = "Bitte mindestens Kurz- oder Langtext eingeben.";
-                    SafeStateHasChanged();
-                    return;
-                }
-
-                // FlagPath sicherstellen (falls Upload noch nicht erfolgt ist)
-                if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
-                {
-                    CurrentCountry.UpdateFlagPath(FileNameBase ?? "");
-                }
-
-                var isNew = CurrentCountry.Id == 0;
-
-                await using var context = await _contextFactory.CreateDbContextAsync();
-                if (isNew)
-                    context.Countries.Add(CurrentCountry);
-                else
-                    context.Countries.Update(CurrentCountry);
-
-                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                Message = $"Gespeichert: {CurrentCountry.FlagPath}";
-                InvalidateCountriesCache();
-
-                if (_isDisposed) return;
-
-                SelectedCountry = null;
-                NewCountry = new Country();
-
-                if (!_isDisposed && grid is not null)
-                {
-                    try
-                    {
-                        await grid.RefreshDataAsync();
-                    }
-                    catch (ObjectDisposedException) { return; }
-                    catch (InvalidOperationException) { return; }
-                    catch (TaskCanceledException) { return; }
-                    catch (Exception) { return; }
-                }
-
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (InvalidOperationException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception ex)
-            {
-                Message = $"Fehler beim Speichern: {ex.Message}";
-                SafeStateHasChanged();
-            }
+            Message = $"Fehler: {ex.Message}";
+            Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
         }
+    }
 
-        private async Task<GridDataProviderResult<Country>> CountryDataProvider(GridDataProviderRequest<Country> request)
+    private async Task Delete(long id)
+    {
+        if (_isDisposed) return;
+
+        try
         {
-            if (_isDisposed) return new GridDataProviderResult<Country> { Data = new List<Country>(), TotalCount = 0 };
-
-            try
-            {
-                if (countries is null || countries.Count == 0)
-                {
-                    await using var context = await _contextFactory.CreateDbContextAsync();
-                    countries = await context.Countries
-                        .AsNoTracking()
-                        .ToListAsync(_cts?.Token ?? CancellationToken.None);
-                }
-
-                if (_isDisposed) return new GridDataProviderResult<Country> { Data = new List<Country>(), TotalCount = 0 };
-
-                return await Task.FromResult(request.ApplyTo(countries));
-            }
-            catch (ObjectDisposedException)
-            {
-                return new GridDataProviderResult<Country> { Data = new List<Country>(), TotalCount = 0 };
-            }
-            catch (TaskCanceledException)
-            {
-                return new GridDataProviderResult<Country> { Data = new List<Country>(), TotalCount = 0 };
-            }
+            await Service.DeleteCountryAsync(id, _cts?.Token ?? CancellationToken.None);
+            Snackbar.Add("Land gelöscht!", Severity.Warning);
+            if (SelectedCountry?.Id == id) CloseDetail();
+            await LoadDataAsync();
         }
-
-        private void OnSelectedItemsChanged(IEnumerable<Country> selected)
+        catch (Exception ex)
         {
-            var row = selected.FirstOrDefault();
-            SelectedCountry = row ?? new Country();
-            _previousFlagPath = SelectedCountry?.FlagPath;
-            SafeStateHasChanged();
+            Snackbar.Add($"Fehler: {ex.Message}", Severity.Error);
         }
+    }
 
-        private async Task OnPngSelected(InputFileChangeEventArgs e)
-        {
-            if (_isDisposed) return;
-
-            try
-            {
-                var file = e.File;
-                if (file is null) return;
-
-                var ext = Path.GetExtension(file.Name).ToLowerInvariant();
-                if (ext != ".png" || !string.Equals(file.ContentType, "image/png", StringComparison.OrdinalIgnoreCase))
-                {
-                    Message = "Nur PNG erlaubt.";
-                    SafeStateHasChanged();
-                    return;
-                }
-
-                if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
-                    CurrentCountry.UpdateFlagPath(FileNameBase ?? "");
-
-                if (string.IsNullOrWhiteSpace(CurrentCountry.FlagPath))
-                {
-                    Message = "Kein Zielpfad. Bitte Shorttxt/Longtxt setzen.";
-                    SafeStateHasChanged();
-                    return;
-                }
-
-                var newPhys = PhysicalFromWebPath(Env, CurrentCountry.FlagPath);
-                Directory.CreateDirectory(Path.GetDirectoryName(newPhys)!);
-
-                if (!string.IsNullOrWhiteSpace(_previousFlagPath) &&
-                    !string.Equals(_previousFlagPath, CurrentCountry.FlagPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    var oldPhys = PhysicalFromWebPath(Env, _previousFlagPath);
-                    if (File.Exists(oldPhys))
-                        TryDeleteFile(oldPhys);
-                }
-
-                if (File.Exists(newPhys))
-                    TryDeleteFile(newPhys);
-
-                await using var read = file.OpenReadStream(MaxFileSize);
-                await using var write = File.Create(newPhys);
-                await read.CopyToAsync(write, _cts?.Token ?? CancellationToken.None);
-
-                _previousFlagPath = CurrentCountry.FlagPath;
-
-                Message = $"Datei: {CurrentCountry.FlagPath}";
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception ex)
-            {
-                Message = $"Fehler beim Upload: {ex.Message}";
-                SafeStateHasChanged();
-            }
-        }
-
-        public async Task DeleteCountryAsync(long? countryId)
-        {
-            if (_isDisposed) return;
-
-            try
-            {
-                await using var context = await _contextFactory.CreateDbContextAsync();
-                var country = await context.Countries.FirstOrDefaultAsync(c => c.Id == countryId, _cts?.Token ?? CancellationToken.None);
-                if (country == null) return;
-
-                if (!string.IsNullOrWhiteSpace(country.FlagPath))
-                {
-                    var phys = PhysicalFromWebPath(Env, country.FlagPath);
-                    if (File.Exists(phys)) TryDeleteFile(phys);
-                }
-
-                countries.Remove(country);
-                context.Countries.Remove(country);
-                await context.SaveChangesAsync(_cts?.Token ?? CancellationToken.None);
-
-                if (_isDisposed) return;
-
-                InvalidateCountriesCache();
-
-                if (_isDisposed) return;
-
-                if (SelectedCountry?.Id == countryId) SelectedCountry = null;
-                NewCountry = new Country();
-
-                if (!_isDisposed && grid is not null)
-                {
-                    try
-                    {
-                        await grid.RefreshDataAsync();
-                    }
-                    catch (ObjectDisposedException) { return; }
-                    catch (InvalidOperationException) { return; }
-                    catch (TaskCanceledException) { return; }
-                    catch (Exception) { return; }
-                }
-
-                SafeStateHasChanged();
-            }
-            catch (ObjectDisposedException) { return; }
-            catch (InvalidOperationException) { return; }
-            catch (TaskCanceledException) { return; }
-            catch (Exception) { return; }
-        }
-
-        private static void TryDeleteFile(string path)
-        {
-            try { File.Delete(path); }
-            catch { }
-        }
-
-        private static string PhysicalFromWebPath(IWebHostEnvironment env, string webPath)
-        {
-            var rel = (webPath ?? "").Trim().Replace('\\', '/');
-            if (rel.StartsWith("/")) rel = rel[1..];
-            return Path.Combine(env.WebRootPath, rel);
-        }
+    public void Dispose()
+    {
+        _isDisposed = true;
+        try { _cts?.Cancel(); } catch { }
+        _cts?.Dispose();
+        _cts = null;
+        GC.SuppressFinalize(this);
     }
 }

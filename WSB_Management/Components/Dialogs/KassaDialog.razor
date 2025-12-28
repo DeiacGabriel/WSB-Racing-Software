@@ -1,0 +1,481 @@
+@using WSB_Management.Models
+@using WSB_Management.Services
+@inject RaceService RaceService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h5" Class="d-flex align-items-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.PointOfSale" Color="Color.Primary" />
+            Kassa - @Customer?.Contact?.Surname @Customer?.Contact?.Firstname
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <div class="row g-3">
+            @* Linke Spalte: Gebuchte Tage *@
+            <div class="col-md-6">
+                <MudPaper Class="pa-3" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Class="me-2" />
+                        Gebuchte Tage
+                    </MudText>
+                    
+                    @if (EventDays != null)
+                    {
+                        @foreach (var day in EventDays)
+                        {
+                            var isBooked = BookedDays.Contains(day.Date);
+                            var dayPrice = GetDayPrice(day);
+                            
+                            <MudCard Class="mb-2" Elevation="1" Style="@(isBooked ? "border-left: 4px solid var(--mud-palette-primary);" : "")">
+                                <MudCardContent Class="pa-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <MudCheckBox T="bool" Value="@isBooked" 
+                                                     ValueChanged="@((val) => ToggleDay(day, val))"
+                                                     Label="@($"{Event.GetGermanDayName(day)} {day:dd.MM.yyyy}")"
+                                                     Color="Color.Primary" />
+                                        <div class="d-flex align-items-center gap-2">
+                                            @if (HasSeasonPass)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CardMembership">
+                                                    JK 0,00 €
+                                                </MudChip>
+                                            }
+                                            else
+                                            {
+                                                <MudTextField T="decimal?" Value="@GetSpecialPrice(day)" 
+                                                              ValueChanged="@((val) => SetSpecialPrice(day, val))"
+                                                              Label="Preis" Variant="Variant.Outlined" 
+                                                              Margin="Margin.Dense" Style="width: 100px;"
+                                                              Adornment="Adornment.End" AdornmentText="€" />
+                                            }
+                                        </div>
+                                    </div>
+                                </MudCardContent>
+                            </MudCard>
+                        }
+                    }
+                    
+                    <MudDivider Class="my-3" />
+                    
+                    <MudCheckBox T="bool" @bind-Value="HasSeasonPass" 
+                                 Label="Jahreskarte (0,00 €)" Color="Color.Success"
+                                 Disabled="@(!CanUseSeasonPass)" />
+                    @if (HasSeasonPass && !HasRace)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">
+                            <strong>WARNUNG:</strong> Jahreskarte ohne Rennteilnahme!
+                        </MudAlert>
+                    }
+                </MudPaper>
+                
+                @* Boxen Bereich *@
+                <MudPaper Class="pa-3 mt-3" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Garage" Class="me-2" />
+                        Boxen
+                    </MudText>
+                    
+                    @if (CustomerBoxBookings.Any())
+                    {
+                        @foreach (var booking in CustomerBoxBookings)
+                        {
+                            <MudChip T="string" Color="Color.Info" OnClose="@(() => RemoveBoxBooking(booking))">
+                                @booking.Box.Number @(booking.Box.IsSammelbox ? "(Sammel)" : "")
+                            </MudChip>
+                        }
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Keine Boxen gebucht</MudText>
+                    }
+                    
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" Class="mt-2"
+                               OnClick="@OpenBoxSelectionDialog">
+                        Box hinzufügen
+                    </MudButton>
+                </MudPaper>
+            </div>
+            
+            @* Rechte Spalte: Transponder, Versicherung, Zahlung *@
+            <div class="col-md-6">
+                @* Transponder & Versicherung *@
+                <MudPaper Class="pa-3" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Sensors" Class="me-2" />
+                        Transponder & Versicherung
+                    </MudText>
+                    
+                    <MudSelect T="Transponder" @bind-Value="SelectedTransponder" Label="Transponder"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2">
+                        <MudSelectItem Value="@((Transponder?)null)">-- Kein Transponder --</MudSelectItem>
+                        @foreach (var trans in AvailableTransponders)
+                        {
+                            <MudSelectItem Value="@trans">@trans.Number - @trans.Bezeichung</MudSelectItem>
+                        }
+                    </MudSelect>
+                    
+                    <MudCheckBox T="bool" @bind-Value="TransponderPaid" Label="Transponder bezahlt" 
+                                 Color="Color.Success" Disabled="@(SelectedTransponder == null)" />
+                    
+                    <MudDivider Class="my-2" />
+                    
+                    <MudCheckBox T="bool" @bind-Value="HasInsurance" Label="Versicherung gebucht"
+                                 Color="Color.Warning" />
+                </MudPaper>
+                
+                @* Rundenzeit *@
+                <MudPaper Class="pa-3 mt-3" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Timer" Class="me-2" />
+                        Rundenzeit
+                    </MudText>
+                    
+                    <MudTextField T="string" @bind-Value="LaptimeString" Label="Beste Rundenzeit"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" 
+                                  Placeholder="0:00.000" HelperText="Format: m:ss.fff" />
+                    
+                    @if (ReferenceLaptime.HasValue)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                            Referenzzeit Vorjahr: @ReferenceLaptime.Value.ToString(@"m\:ss\.fff")
+                        </MudText>
+                    }
+                    
+                    @if (RecommendedGroup != null)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                            Empfohlene Gruppe: <strong>@RecommendedGroup.Name</strong>
+                        </MudAlert>
+                    }
+                </MudPaper>
+                
+                @* Verzichtserklärung *@
+                <MudPaper Class="pa-3 mt-3" Elevation="2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <MudText Typo="Typo.h6">
+                            <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="me-2" />
+                            Verzichtserklärung @DateTime.Now.Year
+                        </MudText>
+                        @if (HasValidWaiver)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Check">
+                                OK
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">
+                                FEHLT
+                            </MudChip>
+                        }
+                    </div>
+                    
+                    @if (!HasValidWaiver)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" 
+                                   Class="mt-2" OnClick="@MarkWaiverSigned">
+                            Verzichtserklärung abgegeben
+                        </MudButton>
+                    }
+                </MudPaper>
+            </div>
+        </div>
+        
+        @* Kassa Zusammenfassung *@
+        @{ var kassaClass = OpenAmount > 0 ? "pa-4 mt-3 mud-theme-error" : "pa-4 mt-3 mud-theme-success"; }
+        <MudPaper Class="@kassaClass" Elevation="3">
+            <MudText Typo="Typo.h5" Class="mb-3 text-white">
+                <MudIcon Icon="@Icons.Material.Filled.Calculate" Class="me-2" />
+                Kassa Zusammenfassung
+            </MudText>
+            
+            <MudSimpleTable Dense="true" Hover="true" Class="bg-white rounded">
+                <tbody>
+                    <tr>
+                        <td>Event-Tage (@BookedDays.Count)</td>
+                        <td class="text-end">@EventDaysTotal.ToString("C2")</td>
+                    </tr>
+                    @if (BoxTotal > 0)
+                    {
+                        <tr>
+                            <td>Boxen</td>
+                            <td class="text-end">@BoxTotal.ToString("C2")</td>
+                        </tr>
+                    }
+                    @if (TransponderCost > 0)
+                    {
+                        <tr>
+                            <td>Transponder</td>
+                            <td class="text-end">@TransponderCost.ToString("C2")</td>
+                        </tr>
+                    }
+                    @if (InsuranceCost > 0)
+                    {
+                        <tr>
+                            <td>Versicherung</td>
+                            <td class="text-end">@InsuranceCost.ToString("C2")</td>
+                        </tr>
+                    }
+                    <tr class="fw-bold">
+                        <td>GESAMT</td>
+                        <td class="text-end">@TotalToPay.ToString("C2")</td>
+                    </tr>
+                    <tr>
+                        <td>Bereits bezahlt</td>
+                        <td class="text-end text-success">@TotalPaid.ToString("C2")</td>
+                    </tr>
+                    <tr class="fw-bold fs-5">
+                        <td>OFFEN</td>
+                        <td class="text-end @(OpenAmount > 0 ? "text-danger" : "text-success")">@OpenAmount.ToString("C2")</td>
+                    </tr>
+                </tbody>
+            </MudSimpleTable>
+            
+            @if (OpenAmount > 0)
+            {
+                <div class="d-flex gap-2 mt-3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Euro" OnClick="@(() => ProcessPayment(PaymentMethod.Cash))">
+                        BAR
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Info" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.CreditCard" OnClick="@(() => ProcessPayment(PaymentMethod.Card))">
+                        KARTE
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.AccountBalance" OnClick="@(() => ProcessPayment(PaymentMethod.BankTransfer))">
+                        ÜBERWEISUNG
+                    </MudButton>
+                </div>
+            }
+        </MudPaper>
+        
+        @* Notizen *@
+        <MudTextField T="string" @bind-Value="Notes" Label="Notizen zur Anmeldung" 
+                      Variant="Variant.Outlined" Lines="2" Class="mt-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Abbrechen</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@Save" 
+                   StartIcon="@Icons.Material.Filled.Save">
+            Speichern
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    [Parameter] public Customer? Customer { get; set; }
+    [Parameter] public Event? CurrentEvent { get; set; }
+    [Parameter] public List<CostumerEvent> CustomerParticipations { get; set; } = new();
+    [Parameter] public List<Transponder> AvailableTransponders { get; set; } = new();
+    [Parameter] public List<EventDayPrice> DayPrices { get; set; } = new();
+    
+    // State
+    private List<DateTime> EventDays { get; set; } = new();
+    private List<DateTime> BookedDays { get; set; } = new();
+    private Dictionary<DateTime, decimal?> SpecialPrices { get; set; } = new();
+    private List<BoxBooking> CustomerBoxBookings { get; set; } = new();
+    
+    private bool HasSeasonPass { get; set; }
+    private bool CanUseSeasonPass { get; set; }
+    private bool HasRace { get; set; } = true;
+    private bool HasValidWaiver { get; set; }
+    private bool HasInsurance { get; set; }
+    private bool TransponderPaid { get; set; }
+    
+    private Transponder? SelectedTransponder { get; set; }
+    private string LaptimeString { get; set; } = "";
+    private TimeSpan? ReferenceLaptime { get; set; }
+    private Gruppe? RecommendedGroup { get; set; }
+    private string? Notes { get; set; }
+    
+    // Calculated values
+    private decimal EventDaysTotal => CalculateEventDaysTotal();
+    private decimal BoxTotal => CustomerBoxBookings.Sum(b => b.Price);
+    private decimal TransponderCost => (SelectedTransponder != null && !TransponderPaid) ? 45.00m : 0;
+    private decimal InsuranceCost => HasInsurance ? 25.00m : 0;
+    private decimal TotalToPay => EventDaysTotal + BoxTotal + TransponderCost + InsuranceCost;
+    private decimal TotalPaid { get; set; } = 0;
+    private decimal OpenAmount => TotalToPay - TotalPaid;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        if (CurrentEvent != null)
+        {
+            EventDays = CurrentEvent.GetEventDays();
+        }
+        
+        if (Customer != null && CurrentEvent != null)
+        {
+            // Initialize booked days from participations
+            BookedDays = CustomerParticipations.Select(p => p.ParticipationDate.Date).ToList();
+            
+            // Initialize special prices
+            foreach (var part in CustomerParticipations.Where(p => p.SpecialPrice.HasValue))
+            {
+                SpecialPrices[part.ParticipationDate.Date] = part.SpecialPrice;
+            }
+            
+            // Check for season pass
+            var seasonPass = await RaceService.GetActiveSeasonPassAsync(Customer.Id);
+            HasSeasonPass = seasonPass != null;
+            CanUseSeasonPass = seasonPass != null;
+            
+            // Check waiver
+            HasValidWaiver = await RaceService.HasValidWaiverAsync(Customer.Id);
+            
+            // Get reference laptime
+            ReferenceLaptime = await RaceService.GetReferenceLaptimeAsync(Customer.Id, CurrentEvent.Id);
+            if (ReferenceLaptime.HasValue)
+            {
+                LaptimeString = ReferenceLaptime.Value.ToString(@"m\:ss\.fff");
+            }
+            
+            // Get box bookings
+            var allBoxBookings = await RaceService.GetEventBoxBookingsAsync(CurrentEvent.Id);
+            CustomerBoxBookings = allBoxBookings.Where(b => b.CustomerId == Customer.Id).ToList();
+            
+            // Get transponder from first participation
+            var firstPart = CustomerParticipations.FirstOrDefault();
+            if (firstPart != null)
+            {
+                SelectedTransponder = firstPart.Transponder;
+                TransponderPaid = firstPart.TransponderPaid;
+                HasInsurance = firstPart.HasInsurance;
+                Notes = firstPart.Notes;
+            }
+            
+            // Calculate total paid
+            var finances = await RaceService.CalculateCustomerFinancesAsync(Customer.Id, CurrentEvent.Id);
+            TotalPaid = finances.TotalPaid;
+        }
+    }
+    
+    private decimal GetDayPrice(DateTime day)
+    {
+        if (HasSeasonPass) return 0;
+        if (SpecialPrices.TryGetValue(day.Date, out var special) && special.HasValue)
+            return special.Value;
+        
+        var dayPrice = DayPrices.FirstOrDefault(p => p.Date.Date == day.Date);
+        return dayPrice?.StandardPrice ?? 220.00m;
+    }
+    
+    private decimal? GetSpecialPrice(DateTime day)
+    {
+        return SpecialPrices.GetValueOrDefault(day.Date);
+    }
+    
+    private void SetSpecialPrice(DateTime day, decimal? value)
+    {
+        if (value.HasValue)
+            SpecialPrices[day.Date] = value;
+        else
+            SpecialPrices.Remove(day.Date);
+    }
+    
+    private void ToggleDay(DateTime day, bool isBooked)
+    {
+        if (isBooked)
+        {
+            if (!BookedDays.Contains(day.Date))
+                BookedDays.Add(day.Date);
+        }
+        else
+        {
+            BookedDays.Remove(day.Date);
+            SpecialPrices.Remove(day.Date);
+        }
+    }
+    
+    private decimal CalculateEventDaysTotal()
+    {
+        if (HasSeasonPass) return 0;
+        
+        return BookedDays.Sum(day => GetDayPrice(day));
+    }
+    
+    private async Task MarkWaiverSigned()
+    {
+        if (Customer != null)
+        {
+            await RaceService.CreateWaiverAsync(Customer.Id, WaiverType.InPerson);
+            HasValidWaiver = true;
+        }
+    }
+    
+    private void OpenBoxSelectionDialog()
+    {
+        // TODO: Implement box selection dialog
+    }
+    
+    private void RemoveBoxBooking(BoxBooking booking)
+    {
+        CustomerBoxBookings.Remove(booking);
+    }
+    
+    private async Task ProcessPayment(PaymentMethod method)
+    {
+        if (Customer == null || CurrentEvent == null) return;
+        
+        var payment = new Payment
+        {
+            CustomerId = Customer.Id,
+            EventId = CurrentEvent.Id,
+            Amount = OpenAmount,
+            Method = method,
+            Type = PaymentType.EventParticipation,
+            PaymentDate = DateTime.Now,
+            BookingDate = DateTime.Now,
+            Status = PaymentStatus.Completed,
+            Description = $"Event {CurrentEvent.Name} - {BookedDays.Count} Tage"
+        };
+        
+        await RaceService.SavePaymentAsync(payment);
+        TotalPaid += OpenAmount;
+        StateHasChanged();
+    }
+    
+    private void Cancel() => MudDialog.Cancel();
+    
+    private async Task Save()
+    {
+        if (Customer == null || CurrentEvent == null)
+        {
+            MudDialog.Close(DialogResult.Cancel());
+            return;
+        }
+        
+        // Save day bookings
+        await RaceService.SaveCustomerDayBookingsAsync(CurrentEvent.Id, Customer.Id, BookedDays);
+        
+        // Update participation details for each booked day
+        var participations = await RaceService.GetEventParticipationsAsync(CurrentEvent.Id);
+        foreach (var part in participations.Where(p => p.CustomerId == Customer.Id))
+        {
+            part.Transponder = SelectedTransponder;
+            part.TransponderPaid = TransponderPaid;
+            part.HasInsurance = HasInsurance;
+            part.IsSeasonPassBooking = HasSeasonPass;
+            part.Notes = Notes;
+            
+            if (SpecialPrices.TryGetValue(part.ParticipationDate.Date, out var special))
+            {
+                part.SpecialPrice = special;
+            }
+            
+            // Parse laptime if provided
+            if (!string.IsNullOrWhiteSpace(LaptimeString) && TimeSpan.TryParse(LaptimeString, out var laptime))
+            {
+                part.Laptime = laptime;
+            }
+            
+            await RaceService.SaveParticipationAsync(part);
+        }
+        
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+}

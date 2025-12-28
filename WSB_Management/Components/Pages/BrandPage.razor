@@ -1,84 +1,111 @@
-﻿@using WSB_Management.Components.Customs
-@using WSB_Management.Components.Layout
-@using System.ComponentModel.DataAnnotations
-@using WSB_Management.Models
-@using Microsoft.AspNetCore.Components.Forms
-
 @page "/management/brands"
-@rendermode InteractiveServer
-@layout MainLayout
+@using WSB_Management.Models
+@using WSB_Management.Services
+@using MudBlazor
 
-<PageTitle>WSB-Sport - Brands</PageTitle>
-<HeadContent>
-    <link rel="stylesheet" href="@Assets["brands.css"]" />
-</HeadContent>
 
-<div class="group-div">
-    <div class="brand-liste-header">
-        <p class="brand-titel">Liste aller Marken</p>
-    </div>
+<PageTitle>WSB-Sport - Marken</PageTitle>
 
-    <div class="grid-scroll-wrapper">
-        <Grid TItem="Brand"
-              @ref="grid"
-              Class="table table-hover table-bordered table-striped table-sm grid-compact"
-              AllowSorting="true"
-              AllowFiltering="true"
-              AllowSelection="true"
-              Responsive="true"
-              AllowPaging="false"
-              DataProvider="@BrandDataProvider"
-              RowKeySelector="b => b.Id"
-              SelectionMode="GridSelectionMode.Single"
-              Style="height:43rem;"
-              SelectedItemsChanged="OnSelectedItemsChanged">
+<style>
+    .brand-card { transition: all 0.2s; cursor: pointer; }
+    .brand-card:hover { background-color: #e3f2fd !important; }
+    .brand-card.selected { background-color: #bbdefb !important; border-left: 4px solid #1976d2; }
+</style>
 
-            <GridColumns>
-                <GridColumn TItem="Brand" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id"
-                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                    @context.Id
-                </GridColumn>
-
-                <GridColumn TItem="Brand" HeaderText="Name" PropertyName="Name" SortKeySelector="x => x.Name"
-                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                    @context.Name
-                </GridColumn>
-
-                <GridColumn TItem="Brand" HeaderText="Aktionen" Filterable="false" Sortable="false"
-                            HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                    <button class="icon-btn tabel-del-btn"
-                            @onclick="() => DeleteBrandAsync(context.Id)"
-                            @onclick:stopPropagation="true"
-                            title="Löschen">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                </GridColumn>
-            </GridColumns>
-        </Grid>
-    </div>
-</div>
-
-<div id="splitter"></div>
-
-<div class="card details-card">
-    <div class="card-header d-flex align-items-center justify-content-between">
-        <span class="fw-semibold">Marke bearbeiten</span>
-        <Button Color="ButtonColor.Danger" Size="ButtonSize.Small" @onclick="SaveBrand">Speichern</Button>
-    </div>
-
-    <div class="card-body" style="padding: 4px;">
-        <div class="row g-3 align-items-start">
-            <div class="col-md-12">
-                <label class="form-label">Markenname</label>
-                <input class="form-control" type="text" @bind="CurrentBrand.Name" placeholder="Markenname eingeben" />
-            </div>
-
-            @if (!string.IsNullOrWhiteSpace(Message))
-            {
-                <div class="col-12">
-                    <small class="text-muted" style="margin:0;">@Message</small>
+<div class="container-fluid p-3">
+    @* Header *@
+    <MudPaper Class="pa-3 mb-3" Elevation="2">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.DirectionsBike" Size="Size.Large" Color="Color.Primary" />
+                <div>
+                    <MudText Typo="Typo.h5" Class="fw-bold">Marken Verwaltung</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @Brands.Count Marken registriert
+                    </MudText>
                 </div>
-            }
+            </div>
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@AddNew">
+                Neue Marke
+            </MudButton>
         </div>
+    </MudPaper>
+    
+    <div class="row">
+        @* Liste *@
+        <div class="@(SelectedBrand != null ? "col-12 col-md-6 col-lg-8" : "col-12")">
+            <MudPaper Class="pa-0" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                    <MudText Typo="Typo.h6">Markenliste</MudText>
+                    <MudTextField T="string" @bind-Value="SearchText" Placeholder="Suchen..."
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 200px;"
+                                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true" />
+                </div>
+                
+                <MudList T="Brand" Dense="true" Class="py-0">
+                    @foreach (var brand in FilteredBrands)
+                    {
+                        var isSelected = SelectedBrand?.Id == brand.Id;
+                        <MudListItem T="Brand" Class="@($"brand-card {(isSelected ? "selected" : "")}")"
+                                     OnClick="@(() => Select(brand))">
+                            <div class="d-flex justify-content-between align-items-center w-100">
+                                <div class="d-flex align-items-center gap-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.DirectionsBike" Color="Color.Primary" />
+                                    <MudText Typo="Typo.body1" Class="fw-bold">@brand.Name</MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Default">ID: @brand.Id</MudChip>
+                                </div>
+                                <span @onclick="@(() => Delete(brand.Id))" @onclick:stopPropagation="true">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" />
+                                </span>
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+                
+                @if (!FilteredBrands.Any())
+                {
+                    <div class="text-center py-5 text-muted">
+                        <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" />
+                        <MudText>Keine Marken gefunden</MudText>
+                    </div>
+                }
+            </MudPaper>
+        </div>
+        
+        @* Detail Panel *@
+        @if (SelectedBrand != null)
+        {
+            <div class="col-12 col-md-6 col-lg-4 mt-3 mt-md-0">
+                <MudPaper Class="pa-4" Elevation="3" Style="border-left: 4px solid #1976d2;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <MudText Typo="Typo.h6">
+                            @(IsNew ? "Neue Marke" : "Marke bearbeiten")
+                        </MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@CloseDetail" />
+                    </div>
+                    
+                    <MudTextField T="string" @bind-Value="SelectedBrand.Name" Label="Markenname"
+                                  Variant="Variant.Outlined" Margin="Margin.Normal" FullWidth="true"
+                                  Required="true" RequiredError="Name ist erforderlich" />
+                    
+                    <div class="d-flex gap-2 mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Save" OnClick="@Save">
+                            Speichern
+                        </MudButton>
+                    </div>
+                    
+                    @if (!string.IsNullOrWhiteSpace(Message))
+                    {
+                        <MudAlert Severity="@(Message.Contains("Fehler") ? Severity.Error : Severity.Success)" 
+                                  Class="mt-3" Dense="true">@Message</MudAlert>
+                    }
+                </MudPaper>
+            </div>
+        }
     </div>
 </div>

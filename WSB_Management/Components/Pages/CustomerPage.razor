@@ -1,306 +1,451 @@
-﻿@using Microsoft.AspNetCore.Components.Web
-@using WSB_Management.Components.Customs
-@using WSB_Management.Components.Layout
-@using System.ComponentModel.DataAnnotations
-@using WSB_Management.Models
-
 @page "/customer"
-@rendermode InteractiveServer
-@layout MainLayout
+@using WSB_Management.Models
+@using WSB_Management.Services
+@using MudBlazor
 
-<PageTitle>WSB-Sport - Kunde</PageTitle>
-<HeadContent>
-    <link rel="stylesheet" href="@Assets["customer.css"]" />
-</HeadContent>
-<div class="group-div" style="height: 34rem;">
-    <div class="kunden-liste-header">
-        <p class="kunden-titel">Liste aller Kunden</p>
-        <div class="header-btn">
-            <button class="excel-btn"><img src="./download_icon.svg" alt="Dw Icon">Export to Excel</button>
-            <button class="regis-kunde-btn"><img src="./add_icon.svg" alt="Add Icon">Kunde anmelden</button>
-        </div>
-    </div>
-    <div class="grid-scroll-wrapper">
-        <Grid TItem="Customer"
-              @ref="grid"
-              Class="table table-hover table-bordered table-striped"
-              AllowSorting="true"
-              AllowFiltering="true"
-              AllowSelection="true"
-              Responsive="true"
-              AllowPaging="false"
-              DataProvider="CustomerDataProvider"
-              RowKeySelector="c => c.Id"
-              SelectionMode="GridSelectionMode.Single"
-              SelectedItemsChanged="OnSelectedItemsChanged"
-              Style="height:28.5rem;">
 
-            <GridColumns>
-                <GridColumn TItem="Customer" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id">
-                    @context.Id
-                </GridColumn>
+<PageTitle>WSB-Sport - Kundenverwaltung</PageTitle>
 
-                <GridColumn TItem="Customer" HeaderText="Nachname" PropertyName="Surname" SortKeySelector="x => x.Contact.Surname">
-                    @context.Contact.Surname
-                </GridColumn>
+<style>
+    .customer-card { transition: all 0.2s; cursor: pointer; }
+    .customer-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
+    .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .stat-card-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .stat-card-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .stat-card-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .detail-panel { border-left: 4px solid #1976d2; }
+    .section-title { font-weight: 600; color: #1976d2; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; }
+</style>
 
-                <GridColumn TItem="Customer" HeaderText="Vorname" PropertyName="Firstname" SortKeySelector="x => x.Contact.Firstname">
-                    @context.Contact.Firstname
-                </GridColumn>
-
-                <GridColumn TItem="Customer" HeaderText="Email" PropertyName="Mail" SortKeySelector="x => x.Mail">
-                    @context.Mail
-                </GridColumn>
-
-                <GridColumn TItem="Customer" HeaderText="Telefon" PropertyName="Phonenumber" SortKeySelector="x => x.Contact.Phonenumber">
-                    @context.Contact.Phonenumber
-                </GridColumn>
-
-                <GridColumn TItem="Customer" HeaderText="Geburtsdatum" PropertyName="Birthdate" SortKeySelector="x => x.Birthdate">
-                    @context.Birthdate.ToString("dd.MM.yyyy")
-                </GridColumn>
-
-                <GridColumn TItem="Customer" HeaderText="Aktionen" Filterable="false" Sortable="false">
-                    <button class="icon-btn tabel-del-btn"
-                            @onclick="() => DeleteCustomer(context.Id)"
-                            @onclick:stopPropagation="true"
-                            title="Löschen">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                </GridColumn>
-            </GridColumns>
-        </Grid>
-    </div>
-</div>
-<div id="splitter"></div>
-<div class="detail-group-div">
-    <div class="kunden-details-group">
-        <div class="detail-container">
-            <label for="name">Name</label>
-            <select id="name" name="name" aria-placeholder="Titel" class="firma-select" @bind="CurrentCustomer.Title">
-                <option value="">– Titel wählen –</option>
-                <option value="Herr">Herr</option>
-                <option value="Frau">Frau</option>
-            </select>
-            <input type="text" @bind="CurrentCustomer.Contact.Firstname" placeholder="Vorname" class="name-input" />
-            <input type="text" @bind="CurrentCustomer.Contact.Surname" placeholder="Nachname" class="name-input" />
-        </div>
-        <div>
-            <label for="adresse">Adresse</label>
-            <input type="text" @bind="CurrentCustomer.Address.Street" placeholder="Straße" class="adresse-input" />
-            <input type="text" @bind="PlzOrt" placeholder="PLZ und Ort" class="adresse-input" />
-        </div>
-        <div>
-            <label for="land">Land</label>
-            <InputSelectCountry Items="countries"
-                    class="land-select"
-                    @bind-Value="CurrentCustomer.Address.Country" />
-            <img src="@SelectedFlagPath" class="flag-icon" />
-            <label>Geb</label>
-            <input type="date" @bind="CurrentCustomer.Birthdate" class="geb-input" />
-            <input type="number" value="@CurrentCustomer.Age" disabled class="alter-input" />
-        </div>
-        <div>
-            <label for="kontakt">Kontakt</label>
-            <input type="email" @bind="CurrentCustomer.Mail" placeholder="E-Mail" class="kontakt-input" />
-            <input type="tel" @bind="CurrentCustomer.Contact.Phonenumber" placeholder="Telefon" class="kontakt-input" />
-        </div>
-        <div>
-            <label for="notfall" class="notfall-label">NOTFALL</label>
-            <input type="email" @bind="NotfallContact" placeholder="Notfallkontakt" class="kontakt-input" />
-            <input type="tel" @bind="CurrentCustomer.NotfallContact.Phonenumber" placeholder="Notfalltelefon" class="kontakt-input" />
-
-        </div>
-        <div>
-            <label>UID</label>
-            <input type="text" @bind="CurrentCustomer.UID" placeholder="UID" class="uid-input" />
-            <label>Sponsor</label>
-            <input type="text" @bind="CurrentCustomer.Sponsor" placeholder="Sponsor" class="sponsor-input" />
-        </div>
-        <div class="checkbox-wrapper">
-            <label>TC5K</label>
-            <input type="checkbox"
-                   checked="@Tc5kParticipates"
-                   @onchange="(e) => ToggleParticipatesTc5k((bool)e.Value!)" />
-
-            <label>Teamchef</label>
-            <input type="checkbox"
-                   checked="@Tc5kIsTeamChef"
-                   @onchange="(e) => ToggleTeamchefTc5k((bool)e.Value!)"
-                   disabled="@(!Tc5kParticipates || Tc5kTeam == null)" />
-
-            <label>Team</label>
-            <InputSelectTeam @bind-Value="Tc5kTeam"
-                             Items="AllTeams"
-                             class="team-select"
-                             disabled="@(!Tc5kParticipates)" />
-        </div>
-        <div class="checkbox-wrapper">
-            <label>END Cup</label>
-            <input type="checkbox"
-                   checked="@EndParticipates"
-                   @onchange="(e) => ToggleParticipatesEnd((bool)e.Value!)" />
-
-            <label>Teamchef</label>
-            <input type="checkbox"
-                   checked="@EndIsTeamChef"
-                   @onchange="(e) => ToggleTeamchefEnd((bool)e.Value!)"
-                   disabled="@(!EndParticipates || EndTeam == null)" />
-
-            <label>Team</label>
-            <InputSelectTeam @bind-Value="EndTeam"
-                             Items="AllTeams"
-                             class="team-select"
-                             disabled="@(!EndParticipates)" />
-        </div>
-        <div>
-            <label>Guthaben</label>
-            <input type="number" @bind="CurrentCustomer.Guthaben" placeholder="Guthaben" style="width:5rem;"/>
-            <input type="date" @bind="CurrentCustomer.LastGuthabenAdd" />
-            <input type="number" @bind="CurrentCustomer.LastGuthabenAddNumber" placeholder="Betrag" />
-            <input type="text" @bind="CurrentCustomer.GuthabenComment" placeholder="Bemerkung" />
-        </div>
-        <div class="extra-wrapper">
-            <label>Preisgeld</label>
-            <input type="number" @bind="CurrentCustomer.Preisgeld" placeholder="Preisgeld" />
-            <label>Gratisfahrer</label>
-            <input type="number" @bind="CurrentCustomer.Gratisfahrer" placeholder="Gratisfahrer" />
-            <label>Schurke</label>
-            <input type="number" @bind="CurrentCustomer.Schurke" placeholder="Schurke" />
-            <label>Verzicht OK</label>
-            <input type="checkbox" @bind="CurrentCustomer.VerzichtOk" />
-        </div>
-        <div>
-            <label>Gruppe</label>
-            <InputSelectGruppe @bind-Value="CurrentCustomer.Gruppe"
-                         Items="gruppen"
-                         TextSelector="g => g.Name"
-                         class="gruppe-select" />
+<div class="container-fluid p-3">
+    @* Header *@
+    <MudPaper Class="pa-3 mb-3" Elevation="2">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Color="Color.Primary" />
+                <div>
+                    <MudText Typo="Typo.h5" Class="fw-bold">Kundenverwaltung</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @Customers.Count Kunden registriert
+                    </MudText>
+                </div>
+            </div>
             
-            <label>Beste Zeit</label>
-            <input type="text" @bind="BestTimeInput" placeholder="z.B. 2:15,5 oder 2:15,50" 
-                   pattern="^([0-5]?[0-9]):([0-5][0-9]),([0-9]{1,2})$" 
-                   title="Format: mm:ss,h oder mm:ss,hh (z.B. 2:15,5 oder 2:15,50)" />
+            <div class="d-flex align-items-center gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.PersonAdd"
+                           OnClick="@AddNewCustomer">
+                    Neuer Kunde
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FileDownload">
+                    Export Excel
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Email">
+                    Massen-Mail
+                </MudButton>
+            </div>
+        </div>
+    </MudPaper>
+    
+    @* Statistik Karten *@
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <MudPaper Class="pa-3 stat-card text-white" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <MudText Typo="Typo.h4" Class="fw-bold">@Customers.Count</MudText>
+                        <MudText Typo="Typo.body2">Kunden gesamt</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Style="opacity: 0.6;" />
+                </div>
+            </MudPaper>
+        </div>
+        <div class="col-6 col-md-3">
+            <MudPaper Class="pa-3 stat-card-success text-white" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <MudText Typo="Typo.h4" Class="fw-bold">@Customers.Count(c => c.Gruppe != null && c.Gruppe.Id > 0)</MudText>
+                        <MudText Typo="Typo.body2">Mit Gruppe</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Large" Style="opacity: 0.6;" />
+                </div>
+            </MudPaper>
+        </div>
+        <div class="col-6 col-md-3">
+            <MudPaper Class="pa-3 stat-card-warning text-white" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <MudText Typo="Typo.h4" Class="fw-bold">@Customers.Count(c => c.Transponder != null && c.Transponder.Id > 0)</MudText>
+                        <MudText Typo="Typo.body2">Mit Transponder</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.Sensors" Size="Size.Large" Style="opacity: 0.6;" />
+                </div>
+            </MudPaper>
+        </div>
+        <div class="col-6 col-md-3">
+            <MudPaper Class="pa-3 stat-card-info text-white" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <MudText Typo="Typo.h4" Class="fw-bold">@Customers.Count(c => c.VerzichtOk)</MudText>
+                        <MudText Typo="Typo.body2">Verzicht OK</MudText>
+                    </div>
+                    <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Large" Style="opacity: 0.6;" />
+                </div>
+            </MudPaper>
         </div>
     </div>
-    <div class="bike-race-group">
-        <div>
-            <div class="bike-wrapper">
-                <label>Bike</label>
-                <InputSelectBikeType @bind-Value="CurrentCustomer.Bike.BikeType"
-                    Items="bikeTypes"
-                    class="land-select" />
-                <label>Marke</label>
-                <input type="text" 
-                       value="@CurrentCustomer.Bike.BikeType?.Brand?.Name" 
-                       disabled 
-                       class="land-select" 
-                       placeholder="(automatisch)" />
-                <label>Klasse</label>
-                <input type="text" 
-                       value="@CurrentCustomer.Bike.BikeType?.Klasse?.Bezeichnung" 
-                       disabled 
-                       class="land-select" 
-                       placeholder="(automatisch)" />
-                <label>Kunde seit</label>
-                <input type="date" @bind="CurrentCustomer.Validfrom" />
-             </div>
-             <div class="bike-wrapper2">
-                <label>Tran</label>
-                <InputSelectTransponder @bind-Value="CurrentCustomer.Transponder"
-                                        Items="transponders"
-                                        class="land-select" />
-                <label>Tran Id</label>
-                <input type="text"
-                       value="@CurrentCustomer.Transponder?.Number"
-                       class="tran-id" />
-                <label class="letzte-buch-label">Letzte Buchung</label>
-                <input type="date" @bind="CurrentCustomer.letzteBuchung" placeholder="Letzte Buchung" />
-             </div>
-             <div class="bike-wrapper3">
-                <label>Start #</label>
-                <input type="text" @bind="CurrentCustomer.Startnumber" placeholder="Start #" />
-                <label class="s8s-label">S8S</label>
-                <input type="text" @bind="CurrentCustomer.S8S" placeholder="S8S" />
-                <label>Speeddays</label>
-                <input type="text" @bind="CurrentCustomer.Speeddays" placeholder="Speeddays" />
-                <label class="letzte-einkauf-label">Letzter Einkauf</label>
-                <input type="date" @bind="CurrentCustomer.letzterEinkauf" placeholder="Letzter Einkauf" />
-             </div>
-        </div>
-        <div class="j-l-container">
-            <div>
-                <p>Jahreswertung:</p>
-                <div class="cup-container">
-                    <div class="cup-field">
-                        @foreach (var vm in cups)
-                        {
-                            <div class="checkbox-wrapper">
-                                <label>@vm.Name</label>
-                                <input type="checkbox"/>
-                            </div>
-                        }
-                        </div>
+    
+    <div class="row">
+        @* Kundenliste *@
+        <div class="@(SelectedCustomer != null ? "col-12 col-xl-6" : "col-12")">
+            <MudPaper Class="pa-0" Elevation="2">
+                @* Toolbar *@
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-2">
+                    <MudText Typo="Typo.h6">Kundenliste</MudText>
+                    <div class="d-flex gap-2 align-items-center">
+                        <MudTextField T="string" @bind-Value="SearchText" Placeholder="Suchen..."
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 250px;"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Immediate="true" DebounceInterval="300" />
+                        <MudSelect T="string" @bind-Value="GroupFilter" Label="Gruppe" Variant="Variant.Outlined" 
+                                   Margin="Margin.Dense" Style="width: 150px;">
+                            <MudSelectItem Value="@((string?)null)">Alle</MudSelectItem>
+                            @foreach (var grp in Gruppen)
+                            {
+                                <MudSelectItem Value="@grp.Name">@grp.Name</MudSelectItem>
+                            }
+                        </MudSelect>
                     </div>
-            </div>
-            <div class="laptime-container">
-                <div class="laptime-field">
-                    <label>BRN</label>
-                    <input type="text" placeholder="BRN (mm:ss,ss)" />
                 </div>
-                <div class="laptime-field">
-                    <label>MUG</label>
-                    <input type="text" placeholder="MUG (mm:ss,ss)" />
+                
+                @* Tabelle *@
+                <div style="max-height: 550px; overflow-y: auto;">
+                    <MudSimpleTable Dense="true" Hover="true" Class="mb-0">
+                        <thead class="sticky-top bg-white" style="z-index: 1;">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Telefon</th>
+                                <th>Gruppe</th>
+                                <th>Bike</th>
+                                <th>Land</th>
+                                <th style="width: 80px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var customer in FilteredCustomers)
+                            {
+                                var isSelected = SelectedCustomer?.Id == customer.Id;
+                                <tr class="customer-card @(isSelected ? "mud-primary-lighten" : "")"
+                                    @onclick="@(() => SelectCustomer(customer))"
+                                    style="@(isSelected ? "background-color: #e3f2fd;" : "")">
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Primary">@customer.Id</MudChip>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">@customer.Contact?.Surname @customer.Contact?.Firstname</div>
+                                        @if (!string.IsNullOrEmpty(customer.Startnumber))
+                                        {
+                                            <small class="text-muted">Start# @customer.Startnumber</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(customer.Mail))
+                                        {
+                                            <MudLink Href="@($"mailto:{customer.Mail}")" Target="_blank">@customer.Mail</MudLink>
+                                        }
+                                    </td>
+                                    <td>@customer.Contact?.Phonenumber</td>
+                                    <td>
+                                        @if (customer.Gruppe != null)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="@GetGroupColor(customer.Gruppe.Name)">
+                                                @customer.Gruppe.Name
+                                            </MudChip>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (customer.Bike?.BikeType != null)
+                                        {
+                                            <span>@customer.Bike.BikeType.Brand?.Name</span>
+                                            <small class="text-muted d-block">@customer.Bike.BikeType.Name</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (customer.Address?.Country != null)
+                                        {
+                                            <img src="@customer.Address.Country.FlagPath" alt="@customer.Address.Country.Shorttxt" 
+                                                 style="height: 16px; width: auto;" />
+                                        }
+                                    </td>
+                                    <td @onclick:stopPropagation="true">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                                       OnClick="@(() => SelectCustomer(customer))" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                       OnClick="@(() => DeleteCustomer(customer.Id))" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
                 </div>
-                <div class="laptime-field">
-                    <label>CRE</label>
-                    <input type="text" placeholder="CRE (mm:ss,ss)" />
-                </div>
-                <div class="laptime-field">
-                    <label>PAN</label>
-                    <input type="text" placeholder="PAN (mm:ss,ss)" />
-                </div>
-                <div class="laptime-field">
-                    <label>HUN</label>
-                    <input type="text" placeholder="HUN (mm:ss,ss)" />
-                </div>
-                <div class="laptime-field">
-                    <label>RBR</label>
-                    <input type="text" placeholder="RBR (mm:ss,ss)" />
-                </div>
-                <div class="laptime-field">
-                    <label>LAU</label>
-                    <input type="text" placeholder="LAU (mm:ss,ss)" />
-                </div>
-                <div class="laptime-field">
-                    <label>RIJ</label>
-                    <input type="text" placeholder="RIJ (mm:ss,ss)" />
-                </div>
-                <div class="laptime-field">
-                    <label>MST</label>
-                    <input type="text" placeholder="MST (mm:ss,ss)" />
-                </div>
-                <div class="laptime-field">
-                    <label>SLO</label>
-                    <input type="text" placeholder="SLO (mm:ss,ss)" />
-                </div>
-            </div>
-        </div>
-        <div class="btn-column">
-            <button class="filter-btn" @onclick="SaveCustomerAsync">Speichern</button>
-            <button class="filter-btn">Mail senden</button>
-            <button class="filter-btn">Mail archiv</button>
-            <button class="filter-btn">Kundenmails</button>
+            </MudPaper>
         </div>
         
-        @if (!string.IsNullOrWhiteSpace(Message))
+        @* Detail Panel *@
+        @if (SelectedCustomer != null)
         {
-            <div class="col-12">
-                <div class="alert alert-info mt-2">
-                    <span>@Message</span>
-                    <button type="button" class="btn-close" @onclick="@(() => Message = null)"></button>
-                </div>
+            <div class="col-12 col-xl-6 mt-3 mt-xl-0">
+                <MudPaper Class="pa-4 detail-panel" Elevation="3">
+                    @* Header *@
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="d-flex align-items-center gap-2">
+                            <MudAvatar Color="Color.Primary" Size="Size.Large">
+                                @((SelectedCustomer.Contact?.Firstname?.FirstOrDefault().ToString() ?? "?") + 
+                                  (SelectedCustomer.Contact?.Surname?.FirstOrDefault().ToString() ?? ""))
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.h6">
+                                    @(IsNewCustomer ? "Neuer Kunde" : $"{SelectedCustomer.Contact?.Surname} {SelectedCustomer.Contact?.Firstname}")
+                                </MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    ID: @(IsNewCustomer ? "Neu" : SelectedCustomer.Id.ToString())
+                                </MudText>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save"
+                                       OnClick="@SaveCustomer">Speichern</MudButton>
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="@CloseDetail" />
+                        </div>
+                    </div>
+                    
+                    @* Tabs *@
+                    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3">
+                        @* Persönliche Daten *@
+                        <MudTabPanel Text="Person" Icon="@Icons.Material.Filled.Person">
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudSelect T="string" @bind-Value="SelectedCustomer.Title" Label="Anrede"
+                                               Variant="Variant.Outlined" Margin="Margin.Dense">
+                                        <MudSelectItem Value="@("Herr")">Herr</MudSelectItem>
+                                        <MudSelectItem Value="@("Frau")">Frau</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.Contact!.Firstname"
+                                                  Label="Vorname" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.Contact!.Surname"
+                                                  Label="Nachname" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.Mail"
+                                                  Label="E-Mail" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  InputType="InputType.Email" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.Contact!.Phonenumber"
+                                                  Label="Telefon" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudDatePicker @bind-Date="BirthDatePicker" Label="Geburtsdatum"
+                                                   Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd.MM.yyyy" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="int" Value="@SelectedCustomer.Age" Label="Alter"
+                                                  Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="true" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.UID"
+                                                  Label="UID" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudTabPanel>
+                        
+                        @* Adresse *@
+                        <MudTabPanel Text="Adresse" Icon="@Icons.Material.Filled.Home">
+                            <MudGrid>
+                                <MudItem xs="12">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.Address!.Street"
+                                                  Label="Straße" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.Address!.Zip"
+                                                  Label="PLZ" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="8">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.Address!.City"
+                                                  Label="Ort" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudSelect T="Country" @bind-Value="SelectedCustomer.Address!.Country"
+                                               Label="Land" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                               ToStringFunc="@(c => c?.Longtxt ?? "")" Clearable="true">
+                                        @foreach (var country in Countries)
+                                        {
+                                            <MudSelectItem Value="@country">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <img src="@country.FlagPath" style="height: 14px;" />
+                                                    @country.Longtxt
+                                                </div>
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                
+                                <MudItem xs="12">
+                                    <MudText Typo="Typo.subtitle1" Class="section-title mt-3">Notfallkontakt</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.NotfallContact!.Firstname"
+                                                  Label="Vorname" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.NotfallContact!.Surname"
+                                                  Label="Nachname" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.NotfallContact!.Phonenumber"
+                                                  Label="Telefon" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudTabPanel>
+                        
+                        @* Racing *@
+                        <MudTabPanel Text="Racing" Icon="@Icons.Material.Filled.SportsMotorsports">
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.Startnumber"
+                                                  Label="Startnummer" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudSelect T="Gruppe" @bind-Value="SelectedCustomer.Gruppe"
+                                               Label="Gruppe" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                               ToStringFunc="@(g => g?.Name ?? "")" Clearable="true">
+                                        @foreach (var grp in Gruppen)
+                                        {
+                                            <MudSelectItem Value="@grp">@grp.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="BestTimeString" Label="Beste Zeit"
+                                                  Variant="Variant.Outlined" Margin="Margin.Dense" 
+                                                  Placeholder="mm:ss,hh" HelperText="z.B. 2:15,50" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudSelect T="BikeType" @bind-Value="SelectedBikeType"
+                                               Label="Motorrad Typ" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                               ToStringFunc="@(bt => bt != null ? $"{bt.Brand?.Name} {bt.Name}" : "")" Clearable="true">
+                                        @foreach (var bt in BikeTypes)
+                                        {
+                                            <MudSelectItem Value="@bt">@bt.Brand?.Name @bt.Name (@bt.Klasse?.Bezeichnung)</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudSelect T="Transponder" @bind-Value="SelectedCustomer.Transponder"
+                                               Label="Transponder" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                               ToStringFunc="@(t => t != null ? $"{t.Bezeichung} ({t.Number})" : "")" Clearable="true">
+                                        @foreach (var t in Transponders)
+                                        {
+                                            <MudSelectItem Value="@t">@t.Bezeichung (@t.Number)</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.Sponsor"
+                                                  Label="Sponsor" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudCheckBox T="bool" @bind-Value="SelectedCustomer.VerzichtOk"
+                                                 Label="Verzichtserklärung unterschrieben" Color="Color.Success" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudTabPanel>
+                        
+                        @* Finanzen *@
+                        <MudTabPanel Text="Finanzen" Icon="@Icons.Material.Filled.Euro">
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudNumericField T="double" @bind-Value="SelectedCustomer.Guthaben"
+                                                     Label="Guthaben" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                     Adornment="Adornment.Start" AdornmentText="€" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudNumericField T="double" @bind-Value="SelectedCustomer.LastGuthabenAddNumber"
+                                                     Label="Letzte Aufladung" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                     Adornment="Adornment.Start" AdornmentText="€" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudDatePicker @bind-Date="LastGuthabenAddPicker" Label="Aufladedatum"
+                                                   Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd.MM.yyyy" />
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.GuthabenComment"
+                                                  Label="Bemerkung" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                
+                                <MudItem xs="12">
+                                    <MudDivider Class="my-3" />
+                                </MudItem>
+                                
+                                <MudItem xs="12" md="4">
+                                    <MudNumericField T="double" @bind-Value="SelectedCustomer.Preisgeld"
+                                                     Label="Preisgeld" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                     Adornment="Adornment.Start" AdornmentText="€" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudNumericField T="double" @bind-Value="SelectedCustomer.Gratisfahrer"
+                                                     Label="Gratisfahrer" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudNumericField T="double" @bind-Value="SelectedCustomer.Schurke"
+                                                     Label="Schurke" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudTabPanel>
+                        
+                        @* Zusätzliche Daten *@
+                        <MudTabPanel Text="Sonstiges" Icon="@Icons.Material.Filled.MoreHoriz">
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.S8S"
+                                                  Label="S8S" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField T="string" @bind-Value="SelectedCustomer.Speeddays"
+                                                  Label="Speeddays" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudDatePicker @bind-Date="ValidFromPicker" Label="Kunde seit"
+                                                   Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd.MM.yyyy" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudDatePicker @bind-Date="LetzteBuchungPicker" Label="Letzte Buchung"
+                                                   Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd.MM.yyyy" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudDatePicker @bind-Date="LetzterEinkaufPicker" Label="Letzter Einkauf"
+                                                   Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd.MM.yyyy" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudTabPanel>
+                    </MudTabs>
+                    
+                    @* Message *@
+                    @if (!string.IsNullOrWhiteSpace(Message))
+                    {
+                        <MudAlert Severity="@(Message.Contains("Fehler") ? Severity.Error : Severity.Success)" 
+                                  Class="mt-3" Variant="Variant.Filled" ShowCloseIcon="true"
+                                  CloseIconClicked="@(() => Message = null)">
+                            @Message
+                        </MudAlert>
+                    }
+                </MudPaper>
             </div>
         }
-    </div>   
+    </div>
 </div>

@@ -1,188 +1,186 @@
-@using WSB_Management.Components.Customs
-@using WSB_Management.Components.Layout
-@using System.ComponentModel.DataAnnotations
-@using WSB_Management.Models
-@using Microsoft.AspNetCore.Components.Forms
-
 @page "/management/types"
-@rendermode InteractiveServer
-@layout MainLayout
+@using WSB_Management.Models
+@using WSB_Management.Services
+@using MudBlazor
 
-<PageTitle>WSB-Sport - Motorrad Typen</PageTitle>
-<HeadContent>
-    <link rel="stylesheet" href="@Assets["types.css"]" />
-</HeadContent>
 
-<div class="types-container">
-    <!-- Klassen Section -->
-    <div class="klasse-section">
-        <div class="section-header">
-            <p class="section-titel">Klassen</p>
-            <button class="add-btn" @onclick="AddNewKlasse">
-                <span class="material-symbols-outlined">add</span>
-            </button>
-        </div>
+<PageTitle>WSB-Sport - Motorrad Typen & Klassen</PageTitle>
 
-        <div class="grid-scroll-wrapper">
-            <Grid TItem="Klasse"
-                  @ref="klasseGrid"
-                  Class="table table-hover table-bordered table-striped table-sm grid-compact"
-                  AllowSorting="true"
-                  AllowFiltering="true"
-                  AllowSelection="true"
-                  Responsive="true"
-                  AllowPaging="false"
-                  DataProvider="@KlasseDataProvider"
-                  RowKeySelector="k => k.Id"
-                  SelectionMode="GridSelectionMode.Single"
-                  Style="height:20rem;"
-                  SelectedItemsChanged="OnKlasseSelectedItemsChanged">
+<style>
+    .type-card { transition: all 0.2s; cursor: pointer; }
+    .type-card:hover { background-color: #e3f2fd !important; }
+    .type-card.selected { background-color: #bbdefb !important; border-left: 4px solid #1976d2; }
+</style>
 
-                <GridColumns>
-                    <GridColumn TItem="Klasse" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id"
-                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                        @context.Id
-                    </GridColumn>
-
-                    <GridColumn TItem="Klasse" HeaderText="Bezeichnung" PropertyName="Bezeichnung" SortKeySelector="x => x.Bezeichnung"
-                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                        @context.Bezeichnung
-                    </GridColumn>
-
-                    <GridColumn TItem="Klasse" HeaderText="Aktionen" Filterable="false" Sortable="false"
-                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                        <button class="icon-btn tabel-del-btn"
-                                @onclick="() => DeleteKlasseAsync(context.Id)"
-                                @onclick:stopPropagation="true"
-                                title="Löschen">
-                            <span class="material-symbols-outlined">delete</span>
-                        </button>
-                    </GridColumn>
-                </GridColumns>
-            </Grid>
-        </div>
-
-        <div class="card details-card mt-2">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <span class="fw-semibold">Klasse bearbeiten</span>
-                <Button Color="ButtonColor.Danger" Size="ButtonSize.Small" @onclick="SaveKlasseAsync">Speichern</Button>
-            </div>
-
-            <div class="card-body" style="padding: 8px;">
-                <div class="row g-2">
-                    <div class="col-md-12">
-                        <label class="form-label">Bezeichnung</label>
-                        <input class="form-control" type="text" @bind="CurrentKlasse.Bezeichnung" placeholder="z.B. 600, 750, Boxer, GP" />
-                    </div>
-
-                    @if (!string.IsNullOrWhiteSpace(KlasseMessage))
-                    {
-                        <div class="col-12">
-                            <small class="text-muted" style="margin:0;">@KlasseMessage</small>
-                        </div>
-                    }
+<div class="container-fluid p-3">
+    @* Header *@
+    <MudPaper Class="pa-3 mb-3" Elevation="2">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <MudIcon Icon="@Icons.Material.Filled.TwoWheeler" Size="Size.Large" Color="Color.Primary" />
+                <div>
+                    <MudText Typo="Typo.h5" Class="fw-bold">Motorrad Typen & Klassen</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @BikeTypes.Count Typen in @Klassen.Count Klassen
+                    </MudText>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Bike Types Section -->
-    <div class="type-section">
-        <div class="section-header">
-            <p class="section-titel">Motorrad Typen</p>
-            <button class="add-btn" @onclick="AddNewBikeType">
-                <span class="material-symbols-outlined">add</span>
-            </button>
-        </div>
-
-        <div class="grid-scroll-wrapper">
-            <Grid TItem="BikeType"
-                  @ref="bikeTypeGrid"
-                  Class="table table-hover table-bordered table-striped table-sm grid-compact"
-                  AllowSorting="true"
-                  AllowFiltering="true"
-                  AllowSelection="true"
-                  Responsive="true"
-                  AllowPaging="false"
-                  DataProvider="@BikeTypeDataProvider"
-                  RowKeySelector="bt => bt.Id"
-                  SelectionMode="GridSelectionMode.Single"
-                  Style="height:20rem;"
-                  SelectedItemsChanged="OnBikeTypeSelectedItemsChanged">
-
-                <GridColumns>
-                    <GridColumn TItem="BikeType" HeaderText="Id" PropertyName="Id" Filterable="false" SortKeySelector="x => x.Id"
-                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                        @context.Id
-                    </GridColumn>
-
-                    <GridColumn TItem="BikeType" HeaderText="Marke" PropertyName="Brand.Name" SortKeySelector="x => x.Brand!.Name"
-                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                        @context.Brand?.Name
-                    </GridColumn>
-
-                    <GridColumn TItem="BikeType" HeaderText="Typ Name" PropertyName="Name" SortKeySelector="x => x.Name"
-                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                        @context.Name
-                    </GridColumn>
-
-                    <GridColumn TItem="BikeType" HeaderText="Klasse" PropertyName="Klasse.Bezeichnung" SortKeySelector="x => x.Klasse!.Bezeichnung"
-                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                        @context.Klasse?.Bezeichnung
-                    </GridColumn>
-
-                    <GridColumn TItem="BikeType" HeaderText="Aktionen" Filterable="false" Sortable="false"
-                                HeaderStyle="height:2rem;" CellStyle="height:2rem;">
-                        <button class="icon-btn tabel-del-btn"
-                                @onclick="() => DeleteBikeTypeAsync(context.Id)"
-                                @onclick:stopPropagation="true"
-                                title="Löschen">
-                            <span class="material-symbols-outlined">delete</span>
-                        </button>
-                    </GridColumn>
-                </GridColumns>
-            </Grid>
-        </div>
-
-        <div class="card details-card mt-2">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <span class="fw-semibold">Motorrad Typ bearbeiten</span>
-                <Button Color="ButtonColor.Danger" Size="ButtonSize.Small" @onclick="SaveBikeTypeAsync">Speichern</Button>
-            </div>
-
-            <div class="card-body" style="padding: 8px;">
-                <div class="row g-2">
-                    <div class="col-md-12">
-                        <label class="form-label">Marke</label>
-                        <InputSelectBrand @bind-Value="CurrentBikeTypeBrand"
-                                         Items="brands"
-                                         class="form-select" />
+    </MudPaper>
+    
+    <div class="row">
+        @* Klassen (linke Spalte) *@
+        <div class="col-12 col-lg-4">
+            <MudPaper Class="pa-0" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                    <MudText Typo="Typo.h6">Klassen</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Add" OnClick="@AddNewKlasse">
+                        Neu
+                    </MudButton>
+                </div>
+                
+                <MudList T="Klasse" Dense="true" Class="py-0">
+                    @foreach (var klasse in Klassen)
+                    {
+                        var isSelected = SelectedKlasse?.Id == klasse.Id;
+                        <MudListItem T="Klasse" Class="@($"type-card {(isSelected ? "selected" : "")}")"
+                                     OnClick="@(() => SelectKlasse(klasse))">
+                            <div class="d-flex justify-content-between align-items-center w-100">
+                                <div class="d-flex align-items-center gap-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Secondary" Size="Size.Small" />
+                                    <MudText>@klasse.Bezeichnung</MudText>
+                                </div>
+                                <span @onclick="@(() => DeleteKlasse(klasse.Id))" @onclick:stopPropagation="true">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" />
+                                </span>
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+                
+                @* Klasse Edit *@
+                @if (SelectedKlasse != null)
+                {
+                    <div class="pa-3 border-top" style="background-color: #fafafa;">
+                        <MudGrid>
+                            <MudItem xs="12">
+                                <MudTextField T="string" @bind-Value="SelectedKlasse.Bezeichnung" Label="Bezeichnung"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                                           StartIcon="@Icons.Material.Filled.Save" OnClick="@SaveKlasse">
+                                    Klasse Speichern
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
                     </div>
-
-                    <div class="col-md-12">
-                        <label class="form-label">Typ Name</label>
-                        <input class="form-control" type="text" @bind="CurrentBikeType.Name" placeholder="z.B. R6, GS 1200" />
+                }
+            </MudPaper>
+        </div>
+        
+        @* Bike Types (rechte Spalte) *@
+        <div class="col-12 col-lg-8 mt-3 mt-lg-0">
+            <MudPaper Class="pa-0" Elevation="2">
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-2">
+                    <MudText Typo="Typo.h6">Motorrad Typen</MudText>
+                    <div class="d-flex gap-2 align-items-center">
+                        <MudTextField T="string" @bind-Value="SearchText" Placeholder="Suchen..."
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 180px;"
+                                      Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Immediate="true" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Add" OnClick="@AddNewBikeType">
+                            Neuer Typ
+                        </MudButton>
                     </div>
-
-                    <div class="col-md-12">
-                        <label class="form-label">Klasse</label>
-                        <select class="form-select" @bind="CurrentBikeTypeKlasseId">
-                            <option value="0">– Klasse wählen –</option>
-                            @foreach (var klasse in klassen)
+                </div>
+                
+                <div style="max-height: 500px; overflow-y: auto;">
+                    <MudSimpleTable Dense="true" Hover="true">
+                        <thead class="sticky-top bg-white">
+                            <tr>
+                                <th>Marke</th>
+                                <th>Typ Name</th>
+                                <th>Klasse</th>
+                                <th style="width: 80px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var bt in FilteredBikeTypes)
                             {
-                                <option value="@klasse.Id">@klasse.Bezeichnung</option>
+                                var isSelected = SelectedBikeType?.Id == bt.Id;
+                                <tr class="type-card @(isSelected ? "selected" : "")"
+                                    @onclick="@(() => SelectBikeType(bt))"
+                                    style="cursor: pointer;">
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Primary">
+                                            @bt.Brand?.Name
+                                        </MudChip>
+                                    </td>
+                                    <td class="fw-bold">@bt.Name</td>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary">
+                                            @bt.Klasse?.Bezeichnung
+                                        </MudChip>
+                                    </td>
+                                    <td @onclick:stopPropagation="true">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                       OnClick="@(() => DeleteBikeType(bt.Id))" />
+                                    </td>
+                                </tr>
                             }
-                        </select>
-                    </div>
-
-                    @if (!string.IsNullOrWhiteSpace(BikeTypeMessage))
-                    {
-                        <div class="col-12">
-                            <small class="text-muted" style="margin:0;">@BikeTypeMessage</small>
-                        </div>
-                    }
+                        </tbody>
+                    </MudSimpleTable>
                 </div>
-            </div>
+                
+                @* BikeType Edit *@
+                @if (SelectedBikeType != null)
+                {
+                    <div class="pa-3 border-top" style="background-color: #fafafa;">
+                        <MudGrid>
+                            <MudItem xs="12" md="4">
+                                <MudSelect T="Brand" @bind-Value="SelectedBrand" Label="Marke"
+                                           Variant="Variant.Outlined" Margin="Margin.Dense"
+                                           ToStringFunc="@(b => b?.Name ?? "")" Clearable="true">
+                                    @foreach (var b in Brands)
+                                    {
+                                        <MudSelectItem Value="@b">@b.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField T="string" @bind-Value="SelectedBikeType.Name" Label="Typ Name"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudSelect T="Klasse" @bind-Value="SelectedBikeTypeKlasse" Label="Klasse"
+                                           Variant="Variant.Outlined" Margin="Margin.Dense"
+                                           ToStringFunc="@(k => k?.Bezeichnung ?? "")" Clearable="true">
+                                    @foreach (var k in Klassen)
+                                    {
+                                        <MudSelectItem Value="@k">@k.Bezeichnung</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12">
+                                <div class="d-flex gap-2">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success"
+                                               StartIcon="@Icons.Material.Filled.Save" OnClick="@SaveBikeType">
+                                        Typ Speichern
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                                               OnClick="@(() => SelectedBikeType = null)">
+                                        Abbrechen
+                                    </MudButton>
+                                </div>
+                            </MudItem>
+                        </MudGrid>
+                    </div>
+                }
+            </MudPaper>
         </div>
     </div>
 </div>
