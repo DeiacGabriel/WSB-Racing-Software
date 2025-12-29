@@ -1,13 +1,15 @@
 ﻿@using WSB_Management.Components.Layout
+@using WSB_Management.Services
 @using System.ComponentModel.DataAnnotations
 
 @page "/login"
 @layout MinimalLayout
 
+@inject CustomAuthStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject ILogger<Login> Logger
+
 <PageTitle>WSB-Sport - Login</PageTitle>
-<HeadContent>
-    <link rel="stylesheet" href="@Assets["login.css"]" />
-</HeadContent>
 
 <div class="page-container">
     <div class="page-header">
@@ -19,29 +21,26 @@
 
     <div class="login-full">
         <div class="login-content">
-            <EditForm Model="@this" OnValidSubmit="HandleLogin">
+            <EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
 
                 <div class="form-group">
                     <label>Email</label>
                     <div class="input-wrapper">
-                        <InputText @bind-Value="Username" class="input" placeholder="max.mustermann@wsb-sport.at" />
-                        @if (Username.Contains("@wsb-sport.at"))
+                        <InputText @bind-Value="loginModel.Email" class="input" placeholder="max.mustermann@wsb-sport.at" />
+                        @if (loginModel.Email.Contains("@wsb-sport.at"))
                         {
                             <span class="icon-valid">✔</span>
                         }
                     </div>
-                    <ValidationMessage For="@(() => Username)" />
+                    <ValidationMessage For="@(() => loginModel.Email)" />
                 </div>
 
                 <div class="form-group">
                     <label>Password</label>
-                    <InputText @bind-Value="Password" class="form-control input" type="password" />
-                    <ValidationMessage For="@(() => Password)" />
-                    <div class="forgot-password">
-                        <a href="#">Passwort vergessen?</a>
-                    </div>
+                    <InputText @bind-Value="loginModel.Password" class="form-control input" type="password" />
+                    <ValidationMessage For="@(() => loginModel.Password)" />
                 </div>
 
                 @if (!string.IsNullOrEmpty(ErrorMessage))
@@ -49,12 +48,304 @@
                     <div class="alert alert-danger">@ErrorMessage</div>
                 }
 
-                <button type="submit" class="btn login-button">LOG IN</button>
-
-                <div class="register-link text-center">
-                    <a href="/register">Noch kein Konto?</a>
-                </div>
+                <button type="submit" class="btn login-button" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span>Anmelden...</span>
+                    }
+                    else
+                    {
+                        <span>LOG IN</span>
+                    }
+                </button>
             </EditForm>
         </div>
     </div>
 </div>
+
+@code {
+    private LoginModel loginModel = new();
+    private string ErrorMessage { get; set; } = string.Empty;
+    private bool isLoading = false;
+
+    private class LoginModel
+    {
+        [Required(ErrorMessage = "E-Mail ist erforderlich")]
+        [EmailAddress(ErrorMessage = "Ungültige E-Mail-Adresse")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Passwort ist erforderlich")]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            var success = await AuthStateProvider.LoginAsync(loginModel.Email, loginModel.Password);
+
+            if (success)
+            {
+                Logger.LogInformation("Benutzer {Email} erfolgreich angemeldet", loginModel.Email);
+                Navigation.NavigateTo("/customer", forceLoad: true);
+            }
+            else
+            {
+                ErrorMessage = "Login fehlgeschlagen. Bitte überprüfe deine Eingaben.";
+                Logger.LogWarning("Login fehlgeschlagen für {Email}", loginModel.Email);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Fehler beim Login für {Email}", loginModel.Email);
+            ErrorMessage = "Ein Fehler ist aufgetreten. Bitte versuche es erneut.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
+<style>
+    /* WSB Racing - Login Page Styles */
+html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", Roboto, sans-serif;
+}
+
+.page-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Animated background elements */
+.page-container::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(211, 47, 47, 0.1) 0%, transparent 50%);
+    animation: pulse 15s ease-in-out infinite;
+}
+
+@@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+.page-header {
+    text-align: center;
+    padding: 3rem 0 1rem 0;
+    position: relative;
+    z-index: 1;
+}
+
+.page-header h1 {
+    font-size: 2.8rem;
+    font-weight: 800;
+    margin: 0;
+    color: #fff;
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+    letter-spacing: 0.05em;
+}
+
+.brand-subtitle {
+    font-size: 1rem;
+    margin-top: 0.5rem;
+}
+
+.brand-subtitle a {
+    text-decoration: none;
+    color: rgba(255,255,255,0.7);
+    transition: color 0.3s ease;
+}
+
+.brand-subtitle a:hover {
+    color: #fff;
+}
+
+.login-full {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.login-content {
+    width: 100%;
+    max-width: 420px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+    animation: slideUp 0.6s ease-out;
+    position: relative;
+}
+
+@@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.form-group {
+    margin-top: 1.5rem;
+}
+
+.form-group:first-child {
+    margin-top: 0;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+.input {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.input:focus {
+    outline: none;
+    border-color: #d32f2f;
+    box-shadow: 0 0 0 4px rgba(211, 47, 47, 0.1);
+}
+
+.input::placeholder {
+    color: #aaa;
+}
+
+.icon-valid {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #4caf50;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 10px;
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+}
+
+.login-button {
+    margin-top: 2rem;
+    width: 100%;
+    background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+    color: white;
+    padding: 1rem;
+    border-radius: 12px;
+    border: none;
+    font-weight: 700;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(211, 47, 47, 0.3);
+}
+
+.login-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(211, 47, 47, 0.4);
+    background: linear-gradient(135deg, #e53935 0%, #c62828 100%);
+}
+
+.login-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.login-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Racing stripe decoration */
+.login-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 4px;
+    background: linear-gradient(90deg, #d32f2f, #ff5252, #d32f2f);
+    border-radius: 0 0 4px 4px;
+}
+
+/* Responsive */
+@@media (max-width: 480px) {
+    .login-content {
+        padding: 2rem 1.5rem;
+        margin: 1rem;
+        border-radius: 16px;
+    }
+    
+    .page-header h1 {
+        font-size: 2.2rem;
+    }
+}
+
+/* Validation styles */
+.validation-message {
+    color: #c62828;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.validation-errors {
+    background: #ffebee;
+    color: #c62828;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    border: 1px solid #ef9a9a;
+}
+</style>

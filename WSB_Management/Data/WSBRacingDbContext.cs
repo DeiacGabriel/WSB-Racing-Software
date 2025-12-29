@@ -1,10 +1,9 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using WSB_Management.Models;
 
 namespace WSB_Management.Data;
-public class WSBRacingDbContext : IdentityDbContext<Personal, Position, int>
+
+public class WSBRacingDbContext : DbContext
 {
     public DbSet<Address> Addresses { get; set; }
     public DbSet<Bike> Bikes { get; set; }
@@ -18,12 +17,10 @@ public class WSBRacingDbContext : IdentityDbContext<Personal, Position, int>
     public DbSet<Event> Events { get; set; }
     public DbSet<Klasse> Klasses { get; set; }
     public DbSet<Transponder> Transponders { get; set; }
-    public DbSet<Personal> Personals { get; set; }
-    public DbSet<Position> Positions { get; set; }
     public DbSet<Team> Teams { get; set; }
     public DbSet<Gruppe> Gruppes { get; set; }
     
-    // Neue Entitäten für Race Management
+    // Race Management
     public DbSet<EventDayPrice> EventDayPrices { get; set; }
     public DbSet<Box> Boxes { get; set; }
     public DbSet<BoxBooking> BoxBookings { get; set; }
@@ -35,6 +32,9 @@ public class WSBRacingDbContext : IdentityDbContext<Personal, Position, int>
     public DbSet<RaceCup> RaceCups { get; set; }
     public DbSet<CustomerCupParticipation> CustomerCupParticipations { get; set; }
     public DbSet<LaptimeReference> LaptimeReferences { get; set; }
+    
+    // Admin Users (eigenes Auth-System)
+    public DbSet<AdminUser> AdminUsers { get; set; }
     
     public WSBRacingDbContext(DbContextOptions<WSBRacingDbContext> options) : base(options)
     {
@@ -62,4 +62,3 @@ public class WSBRacingDbContext : IdentityDbContext<Personal, Position, int>
         }
     }
 }
-

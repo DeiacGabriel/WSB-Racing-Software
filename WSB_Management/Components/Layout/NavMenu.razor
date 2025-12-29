@@ -1,4 +1,5 @@
 ﻿@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
 @using WSB_Management.Data
 @using WSB_Management.Models
@@ -7,6 +8,7 @@
 @inject NavigationManager Nav
 @inject IDbContextFactory<WSBRacingDbContext> DbFactory
 @inject EventService EventService
+@inject CustomAuthStateProvider AuthStateProvider
 @implements IDisposable
 
 <MudAppBar Elevation="2" Dense="true" Class="navbar-mud" Style="background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);">
@@ -97,15 +99,58 @@
                         Transponder
                     </div>
                 </MudMenuItem>
+                <MudMenuItem Href="/management/countries">
+                    <div class="d-flex align-items-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Flag" Size="Size.Small" Color="Color.Error" />
+                        Länder
+                    </div>
+                </MudMenuItem>
+                <MudMenuItem Href="/management/brands">
+                    <div class="d-flex align-items-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Size="Size.Small" Color="Color.Default" />
+                        Marken
+                    </div>
+                </MudMenuItem>
+                <MudMenuItem Href="/management/types">
+                    <div class="d-flex align-items-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.TwoWheeler" Size="Size.Small" Color="Color.Info" />
+                        Typen und Klassen von Motorrädern
+                    </div>
+                </MudMenuItem>
                 </ChildContent>
         </MudMenu>
         
-        <MudButton Href="/settings" 
-                   Color="Color.Inherit" 
-                   StartIcon="@Icons.Material.Filled.Settings"
-                   Class="@GetNavClass("/settings")">
-            EINSTELLUNGEN
-        </MudButton>
+        <MudMenu AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter"
+                 Class="@GetNavClass("/settings")">
+            <ActivatorContent>
+                <MudButton Color="Color.Inherit" 
+                           StartIcon="@Icons.Material.Filled.Settings"
+                           EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
+                    EINSTELLUNGEN
+                </MudButton>
+            </ActivatorContent>
+            <ChildContent>
+                <MudMenuItem Href="/settings">
+                    <div class="d-flex align-items-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Small" Color="Color.Primary" />
+                        Allgemein
+                    </div>
+                </MudMenuItem>
+                <MudMenuItem Href="/settings/users">
+                    <div class="d-flex align-items-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Small" Color="Color.Warning" />
+                        Benutzerverwaltung
+                    </div>
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem OnClick="@HandleLogout">
+                    <div class="d-flex align-items-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Color="Color.Error" />
+                        Abmelden
+                    </div>
+                </MudMenuItem>
+            </ChildContent>
+        </MudMenu>
     </div>
 </MudAppBar>
 
@@ -148,9 +193,11 @@
             <MudNavLink Href="/management/types" Icon="@Icons.Material.Filled.TwoWheeler">Motorrad Typen</MudNavLink>
         </MudNavGroup>
         
-        <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Settings" Match="NavLinkMatch.Prefix">
-            Einstellungen
-        </MudNavLink>
+        <MudNavGroup Title="Einstellungen" Icon="@Icons.Material.Filled.Settings" Expanded="@_settingsExpanded">
+            <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Tune">Allgemein</MudNavLink>
+            <MudNavLink Href="/settings/users" Icon="@Icons.Material.Filled.AdminPanelSettings">Benutzer</MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.Logout" OnClick="@HandleLogout">Abmelden</MudNavLink>
+        </MudNavGroup>
     </MudNavMenu>
 </MudDrawer>
 
@@ -158,6 +205,7 @@
     private bool _drawerOpen;
     private bool _eventsExpanded = true;
     private bool _mgmtExpanded;
+    private bool _settingsExpanded;
     private List<Event> EventOptions = new();
     
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
@@ -202,6 +250,12 @@
     {
         _drawerOpen = false;
         InvokeAsync(StateHasChanged);
+    }
+    
+    private async Task HandleLogout()
+    {
+        await AuthStateProvider.LogoutAsync();
+        Nav.NavigateTo("/login", forceLoad: true);
     }
     
     public void Dispose()
