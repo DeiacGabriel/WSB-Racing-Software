@@ -360,8 +360,8 @@
                                                   Label="Sponsor" Variant="Variant.Outlined" Margin="Margin.Dense" />
                                 </MudItem>
                                 <MudItem xs="12" md="6">
-                                    <MudCheckBox T="bool" @bind-Value="SelectedCustomer.VerzichtOk"
-                                                 Label="Verzichtserklärung unterschrieben" Color="Color.Success" />
+                                    <MudCheckBox T="bool" Value="SelectedCustomer.VerzichtOk"
+                                                 Label="Verzichtserklärung unterschrieben" Color="Color.Success" ValueChanged="OnVerzichtChanged"/>
                                 </MudItem>
                             </MudGrid>
                         </MudTabPanel>

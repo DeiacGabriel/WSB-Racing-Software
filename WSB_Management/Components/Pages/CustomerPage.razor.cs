@@ -11,6 +11,7 @@ public partial class CustomerPage : IDisposable
     private CancellationTokenSource? _cts = new();
 
     [Inject] public MasterDataService MasterDataService { get; set; } = default!;
+    [Inject] public RaceService RaceService { get; set; } = default!;
     [Inject] public ISnackbar Snackbar { get; set; } = default!;
 
     // Data
@@ -263,6 +264,37 @@ public partial class CustomerPage : IDisposable
             "C" or "Langsam" => Color.Success,
             _ => Color.Default
         };
+    }
+
+    private async Task OnVerzichtChanged(bool isChecked)
+    {
+        if (SelectedCustomer == null) return;
+
+        try
+        {
+            if (isChecked)
+            {
+                var hasValid = await RaceService.HasValidWaiverAsync(SelectedCustomer.Id);
+                if (!hasValid)
+                {
+                    await RaceService.CreateWaiverAsync(SelectedCustomer.Id, WaiverType.InPerson);
+                    Snackbar.Add("Verzichtserklärung erstellt.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Verzichtserklärung ist bereits vorhanden.", Severity.Info);
+                }
+                SelectedCustomer.VerzichtOk = true;
+            }
+            else
+            {
+                SelectedCustomer.VerzichtOk = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Fehler bei Verzichtserklärung: {ex.Message}", Severity.Error);
+        }
     }
 
     public void Dispose()

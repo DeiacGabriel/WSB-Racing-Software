@@ -31,7 +31,7 @@
                         <InputText @bind-Value="loginModel.Email" class="input" placeholder="max.mustermann@wsb-sport.at" />
                         @if (loginModel.Email.Contains("@wsb-sport.at"))
                         {
-                            <span class="icon-valid">✔</span>
+                            <MudIcon Class="icon-valid" Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Success" />
                         }
                     </div>
                     <ValidationMessage For="@(() => loginModel.Email)" />

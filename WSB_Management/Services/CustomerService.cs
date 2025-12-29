@@ -62,4 +62,23 @@ public class CustomerService
         await db.SaveChangesAsync(ct);
         return id;
     }
+    public async Task<WaiverDeclaration> CreateWaiverAsync(long customerId, WaiverType type = WaiverType.InPerson, string? recordedBy = null)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        
+        var waiver = new WaiverDeclaration
+        {
+            CustomerId = customerId,
+            Year = DateTime.Now.Year,
+            SignedDate = DateTime.Now,
+            Type = type,
+            RecordedBy = recordedBy,
+            IsValid = true
+        };
+        
+        db.WaiverDeclarations.Add(waiver);
+        await db.SaveChangesAsync();
+        
+        return waiver;
+    }
 }

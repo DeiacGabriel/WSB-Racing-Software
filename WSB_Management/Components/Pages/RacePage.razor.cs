@@ -147,6 +147,7 @@ public partial class RacePage : ComponentBase
         EventParticipations = await RaceService.GetEventParticipationsAsync(EventId);
         CustomerSummaries = RaceService.GroupParticipationsByCustomer(EventParticipations, CurrentEvent!);
         Statistics = await RaceService.GetEventStatisticsAsync(EventId);
+        await LoadValidWaiversAsync();
         StateHasChanged();
     }
     #endregion
