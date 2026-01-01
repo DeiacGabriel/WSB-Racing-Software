@@ -34,7 +34,7 @@
                 <MudButton Color="Color.Inherit" 
                            StartIcon="@Icons.Material.Filled.SportsMotorsports"
                            EndIcon="@Icons.Material.Filled.KeyboardArrowDown">
-                    RENNEN
+                    EVENT
                 </MudButton>
             </ActivatorContent>
             <ChildContent>
@@ -167,7 +167,7 @@
             Kunden
         </MudNavLink>
         
-        <MudNavGroup Title="Rennen" Icon="@Icons.Material.Filled.SportsMotorsports" Expanded="@_eventsExpanded">
+        <MudNavGroup Title="Event" Icon="@Icons.Material.Filled.SportsMotorsports" Expanded="@_eventsExpanded">
             @foreach (var ev in EventOptions)
             {
                 <MudNavLink Href="@($"/events/{ev.Id}")" Icon="@Icons.Material.Filled.Flag">
